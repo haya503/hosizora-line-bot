@@ -14,7 +14,7 @@
 ## アーキテクチャ
 
 ```
-GitHub Actions (cron: 毎日18:00 JST)
+GitHub Actions (cron: 毎日任意の時刻、デフォルト18:00 JST)
         ↓
   notify.py（メインスクリプト）
      ├── Open-Meteo API（無料・APIキー不要）
@@ -28,7 +28,7 @@ GitHub Actions (cron: 毎日18:00 JST)
 ### ファイル構成
 
 ```
-.github/workflows/notify.yml   # スケジュール設定・手動トリガー
+.github/workflows/notify.yml   # スケジュール設定（通知時刻はここで変更）・手動トリガー
 src/
   notify.py        # エントリーポイント
   sky_forecast.py  # Open-Meteoから気象データ取得
