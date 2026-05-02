@@ -1,0 +1,33 @@
+name: 星空予報 LINE通知
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # 18:00 JST (UTC+9)
+  workflow_dispatch:
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: skyfield データキャッシュ
+        uses: actions/cache@v4
+        with:
+          path: /tmp/skyfield-data
+          key: skyfield-de421
+
+      - name: パッケージをインストール
+        run: pip install -r requirements.txt
+
+      - name: 星空予報を送信
+        run: python src/notify.py
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          LOCATION_LAT: ${{ secrets.LOCATION_LAT }}
+          LOCATION_LON: ${{ secrets.LOCATION_LON }}
