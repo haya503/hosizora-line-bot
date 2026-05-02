@@ -73,7 +73,7 @@ def get_planet_best_time(
     best_alt = -90.0
     best_time = None
     t = datetime(date_jst.year, date_jst.month, date_jst.day, 18, tzinfo=JST)
-    end = datetime(date_jst.year, date_jst.month, date_jst.day + 1, 6, tzinfo=JST)
+    end = t + timedelta(hours=12)
     while t <= end:
         alt, _, _ = observer.at(ts.from_datetime(t)).observe(planet).apparent().altaz()
         if alt.degrees > best_alt:
