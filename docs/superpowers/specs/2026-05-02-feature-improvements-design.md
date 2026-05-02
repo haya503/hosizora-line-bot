@@ -48,6 +48,8 @@ http://www.7timer.info/bin/astro.php?lon=<LON>&lat=<LAT>&ac=0&lang=en&output=jso
 7timerのシーイングスケール：1（<0.5"・最良）〜 8（>2.5"・最悪）  
 7timerの透明度スケール：1（extinction<0.3・最良）〜 8（extinction>1.0・最悪）
 
+**7timerのデータ解像度について：** 7timer ASTROは3時間ごとのデータを返す。JST 21〜24時はUTC 12〜15時に相当し、UTC 12:00と15:00の2点が利用可能。各時間には最近傍のデータポイントを使用する（21・22時 → UTC 12:00、23・24時 → UTC 15:00）。
+
 **総合評価**は21〜24時の平均スコアを四捨五入して算出する。
 
 ### 絵文字マッピング
