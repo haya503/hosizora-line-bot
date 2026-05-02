@@ -1,4 +1,5 @@
 import pytest
+import requests as _requests
 from unittest.mock import MagicMock, patch
 from line_client import send_messages
 
@@ -11,7 +12,7 @@ def _make_ok_resp():
 
 def _make_fail_resp():
     m = MagicMock()
-    m.raise_for_status.side_effect = Exception("403 Forbidden")
+    m.raise_for_status.side_effect = _requests.RequestException("403 Forbidden")
     return m
 
 
@@ -37,5 +38,5 @@ def test_send_messages_continues_on_partial_failure():
 
 def test_send_messages_raises_when_all_fail():
     with patch("line_client.requests.post", return_value=_make_fail_resp()):
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="all targets"):
             send_messages("tok", ["Ufail"], "hello")

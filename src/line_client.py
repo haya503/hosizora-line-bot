@@ -18,8 +18,9 @@ def send_messages(token: str, targets: list[str], text: str) -> None:
                 timeout=10,
             )
             resp.raise_for_status()
-        except Exception as e:
+        except requests.RequestException as e:
             print(f"LINE send failed for {target}: {e}", file=sys.stderr)
             failures.append((target, e))
     if failures and len(failures) == len(targets):
-        raise failures[0][1]
+        failed_ids = ", ".join(t for t, _ in failures)
+        raise RuntimeError(f"LINE send failed for all targets: {failed_ids}") from failures[0][1]
