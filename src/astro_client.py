@@ -42,12 +42,13 @@ def fetch_7timer_astro(lat: float, lon: float) -> dict[int, HourlyAstroData]:
     return result
 
 
-def fetch_constellations(lat: float, lon: float, date_jst: str) -> list[str]:
+def fetch_constellations(lat: float, lon: float, date_jst: str, token: str) -> list[str]:
     """22時JST時点で見える星座名を最大5件返す。"""
     url = "https://livlog.xyz/hoshimiru/constellation"
     params = {"lat": lat, "lng": lon, "date": date_jst, "hour": 22, "min": 0}
+    headers = {"Authorization": f"Bearer {token}"}
 
-    resp = requests.get(url, params=params, timeout=10)
+    resp = requests.get(url, params=params, headers=headers, timeout=10)
     resp.raise_for_status()
     data = resp.json()
 

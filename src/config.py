@@ -30,4 +30,5 @@ def load() -> SimpleNamespace:
         LINE_NOTIFY_TARGETS=targets,
         LOCATION_LAT=float(os.environ["LOCATION_LAT"]),
         LOCATION_LON=float(os.environ["LOCATION_LON"]),
+        HOSHIMIRU_API_TOKEN=os.environ.get("HOSHIMIRU_API_TOKEN", ""),
     )

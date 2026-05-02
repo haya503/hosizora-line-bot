@@ -20,6 +20,7 @@ FAKE_CFG = SimpleNamespace(
     LINE_NOTIFY_TARGETS=["uid"],
     LOCATION_LAT=35.0,
     LOCATION_LON=135.0,
+    HOSHIMIRU_API_TOKEN="test_token",
 )
 
 

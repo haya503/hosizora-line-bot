@@ -122,7 +122,7 @@ def main() -> None:
 
     try:
         date_jst = datetime.now(JST).date().isoformat()
-        constellations = fetch_constellations(cfg.LOCATION_LAT, cfg.LOCATION_LON, date_jst)
+        constellations = fetch_constellations(cfg.LOCATION_LAT, cfg.LOCATION_LON, date_jst, cfg.HOSHIMIRU_API_TOKEN)
     except Exception:
         constellations = []
 

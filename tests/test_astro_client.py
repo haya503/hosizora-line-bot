@@ -84,17 +84,17 @@ def test_fetch_7timer_jst23_and_24_map_to_tp6():
 
 def test_fetch_constellations_returns_names():
     with patch("astro_client.requests.get", return_value=_make_const_mock()):
-        result = fetch_constellations(35.0, 135.0, "2026-05-02")
+        result = fetch_constellations(35.0, 135.0, "2026-05-02", "test_token")
     assert "さそり座" in result
 
 
 def test_fetch_constellations_limits_to_5():
     with patch("astro_client.requests.get", return_value=_make_const_mock()):
-        result = fetch_constellations(35.0, 135.0, "2026-05-02")
+        result = fetch_constellations(35.0, 135.0, "2026-05-02", "test_token")
     assert len(result) == 5
 
 
 def test_fetch_constellations_empty_result():
     with patch("astro_client.requests.get", return_value=_make_const_mock({"result": []})):
-        result = fetch_constellations(35.0, 135.0, "2026-05-02")
+        result = fetch_constellations(35.0, 135.0, "2026-05-02", "test_token")
     assert result == []
