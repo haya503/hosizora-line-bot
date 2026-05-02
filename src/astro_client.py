@@ -44,7 +44,7 @@ def fetch_7timer_astro(lat: float, lon: float) -> dict[int, HourlyAstroData]:
 
 def fetch_constellations(lat: float, lon: float, date_jst: str, token: str) -> list[str]:
     """22時JST時点で見える星座名を最大5件返す。"""
-    url = "https://livlog.xyz/hoshimiru/constellation"
+    url = "https://app.livlog.xyz/hoshimiru/constellation"
     params = {"lat": lat, "lng": lon, "date": date_jst, "hour": 22, "min": 0}
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -53,5 +53,5 @@ def fetch_constellations(lat: float, lon: float, date_jst: str, token: str) -> l
     data = resp.json()
 
     items = data.get("results", [])
-    names = [item["name"] for item in items if "name" in item]
+    names = [item["jpName"] for item in items if "jpName" in item]
     return names[:5]

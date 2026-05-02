@@ -26,12 +26,12 @@ MOCK_7TIMER = {
 
 MOCK_CONSTELLATION = {
     "results": [
-        {"name": "さそり座"},
-        {"name": "こと座"},
-        {"name": "はくちょう座"},
-        {"name": "わし座"},
-        {"name": "いて座"},
-        {"name": "へびつかい座"},  # 6件 → 5件に切り捨て
+        {"jpName": "さそり座"},
+        {"jpName": "こと座"},
+        {"jpName": "はくちょう座"},
+        {"jpName": "わし座"},
+        {"jpName": "いて座"},
+        {"jpName": "へびつかい座"},  # 6件 → 5件に切り捨て
     ]
 }
 
