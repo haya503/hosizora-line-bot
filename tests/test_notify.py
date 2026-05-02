@@ -32,10 +32,14 @@ def test_calculate_score_low_visibility():
     assert calculate_score(10, 5.0, 5000) == 4
 
 def test_calculate_score_worst_case():
-    assert calculate_score(90, 15.0, 5000) == 2
+    assert calculate_score(90, 15.0, 5000) == 1
 
 def test_calculate_score_minimum_is_1():
     assert calculate_score(100, 15.0, 0) >= 1
+
+def test_calculate_score_partly_cloudy_low_visibility():
+    # 雲量と視程は独立した減点（スペック準拠）
+    assert calculate_score(60, 5.0, 5000) == 3
 
 
 # --- format_stars ---

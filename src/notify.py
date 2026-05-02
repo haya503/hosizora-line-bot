@@ -12,9 +12,8 @@ def calculate_score(cloud_cover: int, moon_age: float, visibility: int) -> int:
         score -= 2
     elif cloud_cover > 50:
         score -= 1
-    else:
-        if visibility < 10000:
-            score -= 1
+    if visibility < 10000:
+        score -= 1
     if 10 <= moon_age <= 20:
         score -= 1
     return max(1, score)
