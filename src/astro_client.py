@@ -52,6 +52,6 @@ def fetch_constellations(lat: float, lon: float, date_jst: str, token: str) -> l
     resp.raise_for_status()
     data = resp.json()
 
-    items = data.get("result", [])
+    items = data.get("results", [])
     names = [item["name"] for item in items if "name" in item]
     return names[:5]

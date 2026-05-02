@@ -25,7 +25,7 @@ MOCK_7TIMER = {
 }
 
 MOCK_CONSTELLATION = {
-    "result": [
+    "results": [
         {"name": "さそり座"},
         {"name": "こと座"},
         {"name": "はくちょう座"},
@@ -95,6 +95,6 @@ def test_fetch_constellations_limits_to_5():
 
 
 def test_fetch_constellations_empty_result():
-    with patch("astro_client.requests.get", return_value=_make_const_mock({"result": []})):
+    with patch("astro_client.requests.get", return_value=_make_const_mock({"results": []})):
         result = fetch_constellations(35.0, 135.0, "2026-05-02", "test_token")
     assert result == []
