@@ -1,10 +1,14 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 import config
 from sky_forecast import fetch_sky_conditions, SkyConditions
 from astro_events import get_astro_data, PlanetInfo
 from astro_client import HourlyAstroData, fetch_7timer_astro, fetch_constellations
 from line_client import send_messages
+
+JST = timezone(timedelta(hours=9))
+
+_HOURLY_EMOJI = {5: "✨", 4: "😊", 3: "🌤", 2: "⛅", 1: "☁️"}
 
 
 def calculate_hourly_score(
@@ -47,7 +51,7 @@ def format_message(
         score = calculate_hourly_score(
             reading.cloud_cover, reading.visibility, ad.seeing, ad.transparency
         )
-        hourly_lines.append(f"  {reading.hour}時: {format_stars(score)}")
+        hourly_lines.append(f"{reading.hour}時 {_HOURLY_EMOJI[score]} {format_stars(score)}")
 
     event_lines = []
     for p in planets:
@@ -117,8 +121,6 @@ def main() -> None:
         astro_data = {}
 
     try:
-        from datetime import date, timedelta, timezone as tz
-        JST = tz(timedelta(hours=9))
         date_jst = datetime.now(JST).date().isoformat()
         constellations = fetch_constellations(cfg.LOCATION_LAT, cfg.LOCATION_LON, date_jst)
     except Exception:
