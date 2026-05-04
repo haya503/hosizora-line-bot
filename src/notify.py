@@ -32,6 +32,25 @@ def format_stars(score: int) -> str:
     return "★" * score + "☆" * (5 - score)
 
 
+def moon_phase(age: float) -> tuple[str, str]:
+    """月齢から (絵文字, 名称) を返す"""
+    if age < 1.5 or age >= 28.0:
+        return "🌑", "新月"
+    if age < 6.5:
+        return "🌒", "三日月"
+    if age < 9.5:
+        return "🌓", "上弦"
+    if age < 13.5:
+        return "🌔", "十三夜"
+    if age < 16.5:
+        return "🌕", "満月"
+    if age < 20.5:
+        return "🌖", "十六夜"
+    if age < 24.0:
+        return "🌗", "下弦"
+    return "🌘", "有明月"
+
+
 def format_message(
     conditions: SkyConditions,
     astro_data: dict[int, HourlyAstroData],
@@ -41,9 +60,10 @@ def format_message(
     meteor_showers: list[tuple[str, int]],
     constellations: list[str],
 ) -> str:
-    moon_str = f"月齢: {moon_age:.0f}"
+    emoji, phase_name = moon_phase(moon_age)
+    moon_str = f"{phase_name}（月齢{moon_age:.0f}）"
     if moonrise:
-        moon_str += f"（月の出: {moonrise}）"
+        moon_str += f"　月の出: {moonrise}"
 
     hourly_lines = []
     for reading in conditions.hourly:
@@ -83,7 +103,7 @@ def format_message(
         *hourly_lines,
         "",
         f"💧 湿度: {conditions.humidity}%　🌬 風速: {conditions.wind_speed}m/s",
-        f"🌙 {moon_str}",
+        f"{emoji} {moon_str}",
         "",
         "🔭 今夜のポイント:",
         *event_lines,
