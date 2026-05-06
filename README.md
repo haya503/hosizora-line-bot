@@ -11,7 +11,7 @@
 - 惑星の南中情報・流星群予報
 - 今夜見える星座一覧
 - 気象庁天気コードによるスコア補正
-- 今日のNASA天文写真（APOD）を画像メッセージで送信
+- 今日のNASA天文写真（APOD）を日本語タイトル付きで画像送信
 - 複数のLINEユーザー/グループへの一括通知
 
 ## 使用API
@@ -23,6 +23,7 @@
 | [星をみるひとAPI](https://hoshimiru.jp/) | 見える星座 |
 | [気象庁 JSON](https://www.jma.go.jp/bosai/forecast/) | 夜間天気コード→スコア補正 |
 | [NASA APOD](https://apod.nasa.gov/apod/astropix.html) | 今日の天文写真 |
+| [DeepL Free API](https://www.deepl.com/pro-api) | APODタイトルの日本語翻訳 |
 | skyfield（ローカル計算） | 天文薄明時刻 |
 
 ## セットアップ
@@ -56,6 +57,7 @@ cp .env.example .env
 | `JMA_AREA_CODE` | ✓ | 気象庁の地域コード（例: 熊本 `430010`、東京 `130010`） |
 | `HOSHIMIRU_API_TOKEN` | — | 星をみるひとAPIトークン（未設定時は星座情報をスキップ） |
 | `NASA_APOD_API_KEY` | — | NASA APIキー（未設定時は `DEMO_KEY` を使用） |
+| `DEEPL_API_KEY` | — | DeepL Free APIキー（未設定時はAPODタイトルを英語のまま送信） |
 
 ### 通知先IDの確認方法
 
@@ -82,6 +84,7 @@ python src/notify.py
 | `JMA_AREA_CODE` | 気象庁地域コード |
 | `HOSHIMIRU_API_TOKEN` | 星をみるひとAPIトークン |
 | `NASA_APOD_API_KEY` | NASA APIキー |
+| `DEEPL_API_KEY` | DeepL Free APIキー（APODタイトル日本語翻訳用） |
 
 ## テスト
 
