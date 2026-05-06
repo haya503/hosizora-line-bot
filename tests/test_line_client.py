@@ -1,7 +1,7 @@
 import pytest
 import requests as _requests
 from unittest.mock import MagicMock, patch
-from line_client import send_messages
+from line_client import send_messages, send_image_message
 
 
 def _make_ok_resp():
@@ -40,3 +40,22 @@ def test_send_messages_raises_when_all_fail():
     with patch("line_client.requests.post", return_value=_make_fail_resp()):
         with pytest.raises(RuntimeError, match="all targets"):
             send_messages("tok", ["Ufail"], "hello")
+
+
+def test_send_image_message_calls_all_targets():
+    with patch("line_client.requests.post", return_value=_make_ok_resp()) as mock_post:
+        send_image_message("tok", ["Uabc", "Cdef"], "https://example.com/image.jpg")
+    assert mock_post.call_count == 2
+    assert mock_post.call_args_list[0][1]["json"]["to"] == "Uabc"
+    assert mock_post.call_args_list[1][1]["json"]["to"] == "Cdef"
+    # Verify message structure
+    msg = mock_post.call_args_list[0][1]["json"]["messages"][0]
+    assert msg["type"] == "image"
+    assert msg["originalContentUrl"] == "https://example.com/image.jpg"
+    assert msg["previewImageUrl"] == "https://example.com/image.jpg"
+
+
+def test_send_image_message_raises_when_all_fail():
+    with patch("line_client.requests.post", return_value=_make_fail_resp()):
+        with pytest.raises(RuntimeError, match="all targets"):
+            send_image_message("tok", ["Ufail"], "https://example.com/image.jpg")
