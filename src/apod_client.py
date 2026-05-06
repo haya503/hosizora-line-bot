@@ -19,6 +19,7 @@ def fetch_apod(api_key: str) -> Optional[tuple[str, str]]:
             params={"api_key": api_key},
             timeout=10
         )
+        response.raise_for_status()
         data = response.json()
 
         # media_type が "video" の場合は None を返す
