@@ -1,6 +1,9 @@
-import requests
 from datetime import datetime
 from typing import Optional
+
+import requests
+
+_BASE_URL = "https://www.jma.go.jp/bosai/forecast/data/forecast"
 
 
 def fetch_night_weather_penalties(area_code: str) -> Optional[dict[int, int]]:
@@ -12,7 +15,7 @@ def fetch_night_weather_penalties(area_code: str) -> Optional[dict[int, int]]:
     例: {18: 0, 21: -1, 24: -2}
     """
     try:
-        url = f"https://www.jma.go.jp/bosai/forecast/data/forecast/{area_code}.json"
+        url = f"{_BASE_URL}/{area_code}.json"
         response = requests.get(url, timeout=10)
         response.raise_for_status()
 
