@@ -4,7 +4,10 @@ import config
 from sky_forecast import fetch_sky_conditions, SkyConditions
 from astro_events import get_astro_data, PlanetInfo
 from astro_client import HourlyAstroData, fetch_7timer_astro, fetch_constellations
-from line_client import send_messages
+from usno_client import fetch_astronomical_twilight
+from jma_client import fetch_night_weather_penalties
+from apod_client import fetch_apod
+from line_client import send_messages, send_image_message
 
 JST = timezone(timedelta(hours=9))
 
@@ -61,6 +64,8 @@ def format_message(
     planets: list[PlanetInfo],
     meteor_showers: list[tuple[str, int]],
     constellations: list[str],
+    twilight_time: Optional[str] = None,
+    weather_penalties: Optional[dict[int, int]] = None,
 ) -> str:
     emoji, phase_name = moon_phase(moon_age)
     moon_str = f"{phase_name}（月齢{moon_age:.0f}）"
@@ -70,8 +75,10 @@ def format_message(
     hourly_lines = []
     for reading in conditions.hourly:
         ad = astro_data.get(reading.hour, HourlyAstroData(1, 1))
+        penalty = (weather_penalties or {}).get(reading.hour, 0)
         score = calculate_hourly_score(
-            reading.cloud_cover, reading.visibility, ad.seeing, ad.transparency
+            reading.cloud_cover, reading.visibility, ad.seeing, ad.transparency,
+            weather_penalty=penalty
         )
         hourly_lines.append(f"{reading.hour}時 {_HOURLY_EMOJI[score]} {format_stars(score)}")
 
@@ -93,14 +100,16 @@ def format_message(
             r.visibility,
             astro_data.get(r.hour, HourlyAstroData(1, 1)).seeing,
             astro_data.get(r.hour, HourlyAstroData(1, 1)).transparency,
+            weather_penalty=(weather_penalties or {}).get(r.hour, 0),
         )
         for r in conditions.hourly
     ]
     overall = round(sum(scores) / len(scores)) if scores else 1
 
-    lines = [
-        "🌙 今夜の星空予報",
-        "",
+    lines = ["🌙 今夜の星空予報", ""]
+    if twilight_time:
+        lines += [f"🌑 天文薄明: {twilight_time}（この時刻から観測ベスト）", ""]
+    lines += [
         "時間帯別:",
         *hourly_lines,
         "",
@@ -142,14 +151,30 @@ def main() -> None:
     except Exception:
         astro_data = {}
 
+    date_jst = datetime.now(JST).date().isoformat()
     try:
-        date_jst = datetime.now(JST).date().isoformat()
         constellations = fetch_constellations(cfg.LOCATION_LAT, cfg.LOCATION_LON, date_jst, cfg.HOSHIMIRU_API_TOKEN)
     except Exception:
         constellations = []
 
-    message = format_message(conditions, astro_data, moon_age, moonrise, planets, meteor_showers, constellations)
+    # USNO: 天文薄明時刻（失敗してもスキップ）
+    twilight_time = fetch_astronomical_twilight(cfg.LOCATION_LAT, cfg.LOCATION_LON, date_jst)
+
+    # JMA: 夜間天気補正（失敗してもスキップ）
+    weather_penalties = fetch_night_weather_penalties(cfg.JMA_AREA_CODE)
+
+    message = format_message(
+        conditions, astro_data, moon_age, moonrise, planets, meteor_showers, constellations,
+        twilight_time=twilight_time,
+        weather_penalties=weather_penalties,
+    )
     send_messages(cfg.LINE_CHANNEL_ACCESS_TOKEN, cfg.LINE_NOTIFY_TARGETS, message)
+
+    # APOD: 画像メッセージ（失敗してもスキップ）
+    apod_result = fetch_apod(cfg.NASA_APOD_API_KEY)
+    if apod_result:
+        image_url, _ = apod_result
+        send_image_message(cfg.LINE_CHANNEL_ACCESS_TOKEN, cfg.LINE_NOTIFY_TARGETS, image_url)
 
 
 if __name__ == "__main__":

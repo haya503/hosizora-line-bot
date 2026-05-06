@@ -21,6 +21,8 @@ FAKE_CFG = SimpleNamespace(
     LOCATION_LAT=35.0,
     LOCATION_LON=135.0,
     HOSHIMIRU_API_TOKEN="test_token",
+    JMA_AREA_CODE="130000",
+    NASA_APOD_API_KEY="DEMO_KEY",
 )
 
 
@@ -135,21 +137,53 @@ def test_format_message_empty_astro_data_uses_defaults():
     msg = format_message(SAMPLE_CONDITIONS, {}, 5.0, None, [], [], [])
     assert "今夜の星空予報" in msg
 
+def test_format_message_twilight_time_none_no_section():
+    # twilight_time=None の場合、「天文薄明」行がメッセージに含まれない
+    msg = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], twilight_time=None)
+    assert "天文薄明" not in msg
+
+def test_format_message_twilight_time_shown():
+    # twilight_time="20:15" の場合、メッセージに含まれる
+    msg = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], twilight_time="20:15")
+    assert "天文薄明: 20:15" in msg
+
+def test_format_message_weather_penalties_lower_score():
+    # weather_penalties={21: -1} の場合、21時のスコアが補正なしより下がる
+    msg_no_penalty = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [])
+    msg_with_penalty = format_message(
+        SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [],
+        weather_penalties={21: -1}
+    )
+    # 補正なし: 21時は★★★★★、補正あり: 21時は★★★★☆ になるはず
+    assert "★★★★★" in msg_no_penalty
+    # 補正ありでは少なくとも総合スコアが下がるか、21時の行が変化している
+    lines_no = {l for l in msg_no_penalty.splitlines() if "21時" in l}
+    lines_with = {l for l in msg_with_penalty.splitlines() if "21時" in l}
+    assert lines_no != lines_with
+
 
 # --- main() ---
 
+@patch("notify.send_image_message")
+@patch("notify.fetch_apod")
+@patch("notify.fetch_night_weather_penalties")
+@patch("notify.fetch_astronomical_twilight")
 @patch("notify.send_messages")
 @patch("notify.fetch_constellations")
 @patch("notify.fetch_7timer_astro")
 @patch("notify.get_astro_data")
 @patch("notify.fetch_sky_conditions")
 @patch("notify.config")
-def test_main_happy_path(mock_config, mock_fetch, mock_astro, mock_7timer, mock_const, mock_send):
+def test_main_happy_path(mock_config, mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
+                         mock_twilight, mock_penalties, mock_apod, mock_send_image):
     mock_config.load.return_value = FAKE_CFG
     mock_fetch.return_value = SAMPLE_CONDITIONS
     mock_astro.return_value = (5.0, "21:00", SAMPLE_PLANETS, [])
     mock_7timer.return_value = SAMPLE_ASTRO
     mock_const.return_value = []
+    mock_twilight.return_value = None
+    mock_penalties.return_value = None
+    mock_apod.return_value = None
 
     main()
 
@@ -172,18 +206,26 @@ def test_main_weather_error_sends_error_notification(mock_config, mock_fetch, mo
     assert "気象データ取得失敗" in text
 
 
+@patch("notify.send_image_message")
+@patch("notify.fetch_apod")
+@patch("notify.fetch_night_weather_penalties")
+@patch("notify.fetch_astronomical_twilight")
 @patch("notify.send_messages")
 @patch("notify.fetch_constellations")
 @patch("notify.fetch_7timer_astro")
 @patch("notify.get_astro_data")
 @patch("notify.fetch_sky_conditions")
 @patch("notify.config")
-def test_main_7timer_failure_still_sends(mock_config, mock_fetch, mock_astro, mock_7timer, mock_const, mock_send):
+def test_main_7timer_failure_still_sends(mock_config, mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
+                                         mock_twilight, mock_penalties, mock_apod, mock_send_image):
     mock_config.load.return_value = FAKE_CFG
     mock_fetch.return_value = SAMPLE_CONDITIONS
     mock_astro.return_value = (5.0, None, [], [])
     mock_7timer.side_effect = Exception("7timer down")
     mock_const.return_value = []
+    mock_twilight.return_value = None
+    mock_penalties.return_value = None
+    mock_apod.return_value = None
 
     main()
 
@@ -191,18 +233,26 @@ def test_main_7timer_failure_still_sends(mock_config, mock_fetch, mock_astro, mo
     assert "今夜の星空予報" in mock_send.call_args[0][2]
 
 
+@patch("notify.send_image_message")
+@patch("notify.fetch_apod")
+@patch("notify.fetch_night_weather_penalties")
+@patch("notify.fetch_astronomical_twilight")
 @patch("notify.send_messages")
 @patch("notify.fetch_constellations")
 @patch("notify.fetch_7timer_astro")
 @patch("notify.get_astro_data")
 @patch("notify.fetch_sky_conditions")
 @patch("notify.config")
-def test_main_constellation_failure_still_sends(mock_config, mock_fetch, mock_astro, mock_7timer, mock_const, mock_send):
+def test_main_constellation_failure_still_sends(mock_config, mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
+                                                 mock_twilight, mock_penalties, mock_apod, mock_send_image):
     mock_config.load.return_value = FAKE_CFG
     mock_fetch.return_value = SAMPLE_CONDITIONS
     mock_astro.return_value = (5.0, None, [], [])
     mock_7timer.return_value = SAMPLE_ASTRO
     mock_const.side_effect = Exception("constellation API down")
+    mock_twilight.return_value = None
+    mock_penalties.return_value = None
+    mock_apod.return_value = None
 
     main()
 
