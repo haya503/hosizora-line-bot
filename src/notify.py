@@ -174,7 +174,10 @@ def main() -> None:
     apod_result = fetch_apod(cfg.NASA_APOD_API_KEY)
     if apod_result:
         image_url, _ = apod_result
-        send_image_message(cfg.LINE_CHANNEL_ACCESS_TOKEN, cfg.LINE_NOTIFY_TARGETS, image_url)
+        try:
+            send_image_message(cfg.LINE_CHANNEL_ACCESS_TOKEN, cfg.LINE_NOTIFY_TARGETS, image_url)
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

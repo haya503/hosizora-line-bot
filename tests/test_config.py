@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import patch
 import config
 from config import _parse_targets, load
 
@@ -72,5 +73,6 @@ def test_load_apod_key_defaults_to_demo(monkeypatch):
     monkeypatch.setenv("LOCATION_LON", "135.0")
     monkeypatch.delenv("NASA_APOD_API_KEY", raising=False)
     monkeypatch.setenv("JMA_AREA_CODE", "130000")
-    cfg = config.load()
+    with patch("config.load_dotenv"):
+        cfg = config.load()
     assert cfg.NASA_APOD_API_KEY == "DEMO_KEY"

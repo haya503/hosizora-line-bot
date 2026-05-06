@@ -30,9 +30,10 @@ def test_fetch_night_weather_penalties_returns_dict_with_correct_penalties():
         result = jma_client.fetch_night_weather_penalties("130010")
 
     # 100: 晴れ→0, 201: 曇り→-1, 300: 雨→-2
+    # 0時はsky_forecastが hour=24 で表現するため key=24 に正規化される
     assert result is not None
     assert result[18] == 0
-    assert result[0] == -1
+    assert result[24] == -1
     assert result[2] == -2
     assert len(result) == 3
 

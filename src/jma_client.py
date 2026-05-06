@@ -49,7 +49,9 @@ def fetch_night_weather_penalties(area_code: str) -> Optional[dict[int, int]]:
                 else:
                     penalty = 0
 
-                result[hour] = penalty
+                # sky_forecast は深夜0時を hour=24 で表現するため合わせる
+                key = 24 if hour == 0 else hour
+                result[key] = penalty
 
         return result
 

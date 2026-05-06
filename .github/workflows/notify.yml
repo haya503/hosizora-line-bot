@@ -32,3 +32,5 @@ jobs:
           LOCATION_LAT: ${{ secrets.LOCATION_LAT }}
           LOCATION_LON: ${{ secrets.LOCATION_LON }}
           HOSHIMIRU_API_TOKEN: ${{ secrets.HOSHIMIRU_API_TOKEN }}
+          NASA_APOD_API_KEY: ${{ secrets.NASA_APOD_API_KEY }}
+          JMA_AREA_CODE: ${{ secrets.JMA_AREA_CODE }}
