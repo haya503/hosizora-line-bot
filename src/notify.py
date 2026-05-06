@@ -6,7 +6,7 @@ from astro_events import get_astro_data, PlanetInfo
 from astro_client import HourlyAstroData, fetch_7timer_astro, fetch_constellations
 from usno_client import fetch_astronomical_twilight
 from jma_client import fetch_night_weather_penalties
-from apod_client import fetch_apod
+from apod_client import fetch_apod, translate_apod_explanation
 from line_client import send_messages, send_image_message
 
 JST = timezone(timedelta(hours=9))
@@ -170,10 +170,19 @@ def main() -> None:
     )
     send_messages(cfg.LINE_CHANNEL_ACCESS_TOKEN, cfg.LINE_NOTIFY_TARGETS, message)
 
-    # APOD: 画像メッセージ（失敗してもスキップ）
+    # APOD: 画像と日本語要約を送信（失敗してもスキップ）
     apod_result = fetch_apod(cfg.NASA_APOD_API_KEY)
     if apod_result:
-        image_url, _ = apod_result
+        image_url, title, explanation = apod_result
+        translated_title = translate_apod_explanation(title, cfg.DEEPL_API_KEY) or title
+        try:
+            send_messages(
+                cfg.LINE_CHANNEL_ACCESS_TOKEN,
+                cfg.LINE_NOTIFY_TARGETS,
+                f"📷 今日のNASA天文写真\n{translated_title}"
+            )
+        except Exception:
+            pass
         try:
             send_image_message(cfg.LINE_CHANNEL_ACCESS_TOKEN, cfg.LINE_NOTIFY_TARGETS, image_url)
         except Exception:

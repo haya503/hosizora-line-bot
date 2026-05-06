@@ -23,6 +23,7 @@ FAKE_CFG = SimpleNamespace(
     HOSHIMIRU_API_TOKEN="test_token",
     JMA_AREA_CODE="130000",
     NASA_APOD_API_KEY="DEMO_KEY",
+    DEEPL_API_KEY="",
 )
 
 
@@ -165,6 +166,7 @@ def test_format_message_weather_penalties_lower_score():
 # --- main() ---
 
 @patch("notify.send_image_message")
+@patch("notify.translate_apod_explanation")
 @patch("notify.fetch_apod")
 @patch("notify.fetch_night_weather_penalties")
 @patch("notify.fetch_astronomical_twilight")
@@ -175,7 +177,7 @@ def test_format_message_weather_penalties_lower_score():
 @patch("notify.fetch_sky_conditions")
 @patch("notify.config")
 def test_main_happy_path(mock_config, mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
-                         mock_twilight, mock_penalties, mock_apod, mock_send_image):
+                         mock_twilight, mock_penalties, mock_apod, mock_summarize, mock_send_image):
     mock_config.load.return_value = FAKE_CFG
     mock_fetch.return_value = SAMPLE_CONDITIONS
     mock_astro.return_value = (5.0, "21:00", SAMPLE_PLANETS, [])
@@ -207,6 +209,7 @@ def test_main_weather_error_sends_error_notification(mock_config, mock_fetch, mo
 
 
 @patch("notify.send_image_message")
+@patch("notify.translate_apod_explanation")
 @patch("notify.fetch_apod")
 @patch("notify.fetch_night_weather_penalties")
 @patch("notify.fetch_astronomical_twilight")
@@ -217,7 +220,7 @@ def test_main_weather_error_sends_error_notification(mock_config, mock_fetch, mo
 @patch("notify.fetch_sky_conditions")
 @patch("notify.config")
 def test_main_7timer_failure_still_sends(mock_config, mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
-                                         mock_twilight, mock_penalties, mock_apod, mock_send_image):
+                                         mock_twilight, mock_penalties, mock_apod, mock_summarize, mock_send_image):
     mock_config.load.return_value = FAKE_CFG
     mock_fetch.return_value = SAMPLE_CONDITIONS
     mock_astro.return_value = (5.0, None, [], [])
@@ -234,6 +237,7 @@ def test_main_7timer_failure_still_sends(mock_config, mock_fetch, mock_astro, mo
 
 
 @patch("notify.send_image_message")
+@patch("notify.translate_apod_explanation")
 @patch("notify.fetch_apod")
 @patch("notify.fetch_night_weather_penalties")
 @patch("notify.fetch_astronomical_twilight")
@@ -244,7 +248,7 @@ def test_main_7timer_failure_still_sends(mock_config, mock_fetch, mock_astro, mo
 @patch("notify.fetch_sky_conditions")
 @patch("notify.config")
 def test_main_constellation_failure_still_sends(mock_config, mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
-                                                 mock_twilight, mock_penalties, mock_apod, mock_send_image):
+                                                 mock_twilight, mock_penalties, mock_apod, mock_summarize, mock_send_image):
     mock_config.load.return_value = FAKE_CFG
     mock_fetch.return_value = SAMPLE_CONDITIONS
     mock_astro.return_value = (5.0, None, [], [])
