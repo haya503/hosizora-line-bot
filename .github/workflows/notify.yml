@@ -2,7 +2,7 @@ name: 星空予報 LINE通知
 
 on:
   schedule:
-    - cron: '0 8 * * *'  # 17:00 JST (UTC+9)
+    - cron: '0 6 * * *'  # 17:00 JST目標 (UTC+9、遅延2h想定)
   workflow_dispatch:
 
 jobs:
