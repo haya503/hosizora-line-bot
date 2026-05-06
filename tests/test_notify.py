@@ -54,6 +54,23 @@ def test_calculate_hourly_score_cloud_penalty_is_exclusive():
     # 雲量>80%は-2だけ（-2と-1が重複しない）
     assert calculate_hourly_score(85, 20000, 1, 1) == 3  # 5-2=3, not 5-3=2
 
+def test_calculate_hourly_score_weather_penalty_default():
+    # weather_penalty=0（デフォルト）で既存の動作が変わらない
+    assert calculate_hourly_score(10, 20000, 1, 1) == 5
+    assert calculate_hourly_score(60, 20000, 1, 1) == 4
+
+def test_calculate_hourly_score_weather_penalty_minus_1():
+    # weather_penalty=-1 でスコアが1減る
+    assert calculate_hourly_score(10, 20000, 1, 1, weather_penalty=-1) == 4
+
+def test_calculate_hourly_score_weather_penalty_minus_2():
+    # weather_penalty=-2 でスコアが2減る
+    assert calculate_hourly_score(10, 20000, 1, 1, weather_penalty=-2) == 3
+
+def test_calculate_hourly_score_weather_penalty_minimum_score():
+    # ペナルティを加えてもスコアが1未満にならない
+    assert calculate_hourly_score(85, 5000, 5, 6, weather_penalty=-5) == 1
+
 
 # --- format_stars ---
 
