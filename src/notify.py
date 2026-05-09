@@ -8,6 +8,9 @@ from usno_client import fetch_astronomical_twilight
 from jma_client import fetch_night_weather_penalties
 from apod_client import fetch_apod, translate_apod_explanation
 from line_client import send_messages, send_image_message
+from cams_client import fetch_aod
+from openaq_client import fetch_pm25
+from horizons_client import fetch_visible_comets
 
 JST = timezone(timedelta(hours=9))
 
@@ -73,6 +76,9 @@ def format_message(
     twilight_time: Optional[str] = None,
     weather_penalties: Optional[dict[int, int]] = None,
     location_name: Optional[str] = None,
+    comets: Optional[list] = None,
+    aod: Optional[float] = None,
+    pm25: Optional[float] = None,
 ) -> str:
     emoji, phase_name = moon_phase(moon_age)
     moon_str = f"{phase_name}（月齢{moon_age:.0f}）"
@@ -98,6 +104,11 @@ def format_message(
             event_lines.append(f"・{name} 本日がピーク！")
         else:
             event_lines.append(f"・{name}まであと{days}日")
+    if comets:
+        for comet in comets:
+            event_lines.append(
+                f"・{comet.name} が見頃 {comet.best_time}（高度 {comet.altitude}°, 等級 {comet.magnitude}）"
+            )
     if not event_lines:
         event_lines.append("・特になし")
 
@@ -113,6 +124,12 @@ def format_message(
     ]
     overall = round(sum(scores) / len(scores)) if scores else 1
 
+    humidity_line = f"💧 湿度: {conditions.humidity}%　🌬 風速: {conditions.wind_speed}m/s"
+    if pm25 is not None:
+        humidity_line += f"　🏭 PM2.5: {pm25:.0f}μg/m³"
+    if aod is not None:
+        humidity_line += f"　🌫 AOD: {aod}"
+
     location_line = f"📍 {location_name}" if location_name else ""
     lines = ["🌙 今夜の星空予報", *(([location_line, ""] if location_line else [""]))]
     if twilight_time:
@@ -121,7 +138,7 @@ def format_message(
         "時間帯別:",
         *hourly_lines,
         "",
-        f"💧 湿度: {conditions.humidity}%　🌬 風速: {conditions.wind_speed}m/s",
+        humidity_line,
         f"{emoji} {moon_str}",
         "",
         "🔭 今夜のポイント:",
@@ -171,11 +188,29 @@ def main() -> None:
     # JMA: 夜間天気補正（失敗してもスキップ）
     weather_penalties = fetch_night_weather_penalties(cfg.JMA_AREA_CODE)
 
+    try:
+        aod = fetch_aod(cfg.LOCATION_LAT, cfg.LOCATION_LON)
+    except Exception:
+        aod = None
+
+    try:
+        pm25 = fetch_pm25(cfg.LOCATION_LAT, cfg.LOCATION_LON)
+    except Exception:
+        pm25 = None
+
+    try:
+        comets = fetch_visible_comets(cfg.LOCATION_LAT, cfg.LOCATION_LON, date_jst)
+    except Exception:
+        comets = []
+
     message = format_message(
         conditions, astro_data, moon_age, moonrise, planets, meteor_showers, constellations,
         twilight_time=twilight_time,
         weather_penalties=weather_penalties,
         location_name=cfg.LOCATION_NAME,
+        comets=comets,
+        aod=aod,
+        pm25=pm25,
     )
     send_messages(cfg.LINE_CHANNEL_ACCESS_TOKEN, cfg.LINE_NOTIFY_TARGETS, message)
 

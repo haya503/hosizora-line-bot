@@ -4,6 +4,7 @@ from unittest.mock import patch
 from sky_forecast import SkyConditions, HourlySkyReading
 from astro_events import PlanetInfo
 from astro_client import HourlyAstroData
+from horizons_client import CometInfo
 from notify import calculate_hourly_score, format_stars, format_message, main
 
 _SAMPLE_HOURLY = [
@@ -200,6 +201,36 @@ def test_format_message_weather_penalties_lower_score():
     assert lines_no != lines_with
 
 
+SAMPLE_COMETS = [CometInfo(name="C/2025 E3", best_time="22:00", altitude=28.5, magnitude=6.2)]
+
+def test_format_message_shows_comet_info():
+    msg = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], comets=SAMPLE_COMETS)
+    assert "C/2025 E3" in msg
+    assert "22:00" in msg
+
+def test_format_message_no_comets_no_comet_line():
+    msg = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], comets=[])
+    assert "が見頃" not in msg
+
+def test_format_message_shows_pm25():
+    msg = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], pm25=12.0)
+    assert "PM2.5" in msg
+    assert "12" in msg
+
+def test_format_message_shows_aod():
+    msg = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], aod=0.15)
+    assert "AOD" in msg
+    assert "0.15" in msg
+
+def test_format_message_omits_pm25_when_none():
+    msg = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], pm25=None)
+    assert "PM2.5" not in msg
+
+def test_format_message_omits_aod_when_none():
+    msg = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], aod=None)
+    assert "AOD" not in msg
+
+
 # --- main() ---
 
 @patch("notify.send_image_message")
@@ -212,8 +243,12 @@ def test_format_message_weather_penalties_lower_score():
 @patch("notify.fetch_7timer_astro")
 @patch("notify.get_astro_data")
 @patch("notify.fetch_sky_conditions")
+@patch("notify.fetch_visible_comets")
+@patch("notify.fetch_pm25")
+@patch("notify.fetch_aod")
 @patch("notify.config")
-def test_main_happy_path(mock_config, mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
+def test_main_happy_path(mock_config, mock_fetch_aod, mock_fetch_pm25, mock_fetch_comets,
+                         mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
                          mock_twilight, mock_penalties, mock_apod, mock_summarize, mock_send_image):
     mock_config.load.return_value = FAKE_CFG
     mock_fetch.return_value = SAMPLE_CONDITIONS
@@ -223,6 +258,9 @@ def test_main_happy_path(mock_config, mock_fetch, mock_astro, mock_7timer, mock_
     mock_twilight.return_value = None
     mock_penalties.return_value = None
     mock_apod.return_value = None
+    mock_fetch_aod.return_value = None
+    mock_fetch_pm25.return_value = None
+    mock_fetch_comets.return_value = []
 
     main()
 
@@ -255,8 +293,12 @@ def test_main_weather_error_sends_error_notification(mock_config, mock_fetch, mo
 @patch("notify.fetch_7timer_astro")
 @patch("notify.get_astro_data")
 @patch("notify.fetch_sky_conditions")
+@patch("notify.fetch_visible_comets")
+@patch("notify.fetch_pm25")
+@patch("notify.fetch_aod")
 @patch("notify.config")
-def test_main_7timer_failure_still_sends(mock_config, mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
+def test_main_7timer_failure_still_sends(mock_config, mock_fetch_aod, mock_fetch_pm25, mock_fetch_comets,
+                                         mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
                                          mock_twilight, mock_penalties, mock_apod, mock_summarize, mock_send_image):
     mock_config.load.return_value = FAKE_CFG
     mock_fetch.return_value = SAMPLE_CONDITIONS
@@ -266,6 +308,9 @@ def test_main_7timer_failure_still_sends(mock_config, mock_fetch, mock_astro, mo
     mock_twilight.return_value = None
     mock_penalties.return_value = None
     mock_apod.return_value = None
+    mock_fetch_aod.return_value = None
+    mock_fetch_pm25.return_value = None
+    mock_fetch_comets.return_value = []
 
     main()
 
@@ -283,8 +328,12 @@ def test_main_7timer_failure_still_sends(mock_config, mock_fetch, mock_astro, mo
 @patch("notify.fetch_7timer_astro")
 @patch("notify.get_astro_data")
 @patch("notify.fetch_sky_conditions")
+@patch("notify.fetch_visible_comets")
+@patch("notify.fetch_pm25")
+@patch("notify.fetch_aod")
 @patch("notify.config")
-def test_main_constellation_failure_still_sends(mock_config, mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
+def test_main_constellation_failure_still_sends(mock_config, mock_fetch_aod, mock_fetch_pm25, mock_fetch_comets,
+                                                 mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
                                                  mock_twilight, mock_penalties, mock_apod, mock_summarize, mock_send_image):
     mock_config.load.return_value = FAKE_CFG
     mock_fetch.return_value = SAMPLE_CONDITIONS
@@ -294,6 +343,9 @@ def test_main_constellation_failure_still_sends(mock_config, mock_fetch, mock_as
     mock_twilight.return_value = None
     mock_penalties.return_value = None
     mock_apod.return_value = None
+    mock_fetch_aod.return_value = None
+    mock_fetch_pm25.return_value = None
+    mock_fetch_comets.return_value = []
 
     main()
 
