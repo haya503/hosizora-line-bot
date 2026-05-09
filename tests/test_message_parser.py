@@ -104,3 +104,9 @@ def test_parse_error_message_contains_example():
     with pytest.raises(ParseError) as exc:
         parse_mention_text("@Bot 夜 東京", today=TODAY)
     assert "@Bot" in str(exc.value)
+
+
+def test_parse_day_after_tomorrow():
+    r = parse_mention_text("@Bot 明後日 夜 東京", today=TODAY)
+    assert r.target_date == date(2026, 5, 12)
+    assert r.time_type == "night"
