@@ -61,13 +61,14 @@ def send_image_message(token: str, targets: list[str], image_url: str) -> None:
 _REPLY_URL = "https://api.line.me/v2/bot/message/reply"
 
 
-def reply_message(channel_access_token: str, reply_token: str, text: str) -> None:
+def reply_message(token: str, reply_token: str, text: str) -> None:
     headers = {
-        "Authorization": f"Bearer {channel_access_token}",
+        "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
     }
     payload = {
         "replyToken": reply_token,
         "messages": [{"type": "text", "text": text}],
     }
-    requests.post(_REPLY_URL, headers=headers, json=payload)
+    resp = requests.post(_REPLY_URL, headers=headers, json=payload, timeout=10)
+    resp.raise_for_status()

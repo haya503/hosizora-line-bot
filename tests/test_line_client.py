@@ -63,16 +63,16 @@ def test_send_image_message_raises_when_all_fail():
 
 def test_reply_message_posts_to_reply_endpoint():
     with patch("line_client.requests.post") as mock_post:
-        mock_post.return_value = MagicMock(status_code=200)
+        mock_post.return_value = _make_ok_resp()
         reply_message("TOKEN", "REPLY_TOKEN_123", "こんにちは")
         mock_post.assert_called_once()
         url = mock_post.call_args[0][0]
-        assert "reply" in url
+        assert url == "https://api.line.me/v2/bot/message/reply"
 
 
 def test_reply_message_includes_token_and_text():
     with patch("line_client.requests.post") as mock_post:
-        mock_post.return_value = MagicMock(status_code=200)
+        mock_post.return_value = _make_ok_resp()
         reply_message("MY_TOKEN", "RT_456", "テストメッセージ")
         call_kwargs = mock_post.call_args
         headers = call_kwargs[1]["headers"]
@@ -80,3 +80,11 @@ def test_reply_message_includes_token_and_text():
         assert headers["Authorization"] == "Bearer MY_TOKEN"
         assert body["replyToken"] == "RT_456"
         assert body["messages"][0]["text"] == "テストメッセージ"
+
+
+def test_reply_message_raises_on_http_error():
+    with patch("line_client.requests.post") as mock_post:
+        mock_post.return_value = MagicMock(status_code=400)
+        mock_post.return_value.raise_for_status.side_effect = Exception("400 Client Error")
+        with pytest.raises(Exception):
+            reply_message("TOKEN", "RT_789", "テスト")
