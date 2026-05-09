@@ -111,7 +111,7 @@ def parse_mention_text(text: str, today: date | None = None) -> ParsedRequest:
     if target_date is None or time_type is None:
         raise ParseError(ERROR_MESSAGE)
 
-    location = loc.strip()
+    location = re.sub(r"[\s　の]+", " ", loc).strip().lstrip("の").rstrip("の").strip()
     if not location:
         raise ParseError(ERROR_MESSAGE)
 

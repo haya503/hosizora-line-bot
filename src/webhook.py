@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 logger = logging.getLogger(__name__)
 
 import requests as _requests
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 
 from astro_events import get_astro_data
 from astro_client import fetch_constellations
@@ -27,6 +27,9 @@ _TOKEN = os.environ["LINE_CHANNEL_ACCESS_TOKEN"]
 _SECRET = os.environ["LINE_CHANNEL_SECRET"]
 _BOT_USER_ID = os.environ["LINE_BOT_USER_ID"]
 _HOSHIMIRU_TOKEN = os.environ.get("HOSHIMIRU_API_TOKEN", "")
+
+logging.basicConfig(level=logging.INFO)
+_log = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -44,6 +47,8 @@ def _is_mention_event(event: dict, bot_user_id: str) -> bool:
     msg = event.get("message", {})
     if msg.get("type") != "text":
         return False
+    if event.get("source", {}).get("type") == "user":
+        return True
     mentionees = msg.get("mention", {}).get("mentionees", [])
     return any(
         m.get("userId") == bot_user_id or m.get("isSelf") is True
@@ -148,6 +153,8 @@ def _format_hour_forecast(
 
 
 def _handle_mention(reply_token: str, text: str) -> None:
+    import time
+    t0 = time.monotonic()
     today = datetime.now(JST).date()
     try:
         req = parse_mention_text(text, today)
@@ -157,18 +164,21 @@ def _handle_mention(reply_token: str, text: str) -> None:
 
     try:
         lat, lon = _geocode(req.location)
+        _log.info("geocode %.1fs", time.monotonic() - t0)
     except Exception:
         reply_message(_TOKEN, reply_token, ERROR_MESSAGE)
         return
 
     try:
         conditions = fetch_sky_conditions(lat, lon, req.target_date)
+        _log.info("sky_forecast %.1fs", time.monotonic() - t0)
     except Exception as e:
         reply_message(_TOKEN, reply_token, f"⚠️ 気象データ取得失敗: {e}")
         return
 
     try:
         moon_age, moonrise, planets, _ = get_astro_data(lat, lon, datetime.now(timezone.utc))
+        _log.info("astro_data %.1fs", time.monotonic() - t0)
     except Exception as e:
         reply_message(_TOKEN, reply_token, f"⚠️ 天体データ取得失敗: {e}")
         return
@@ -195,7 +205,7 @@ def _handle_mention(reply_token: str, text: str) -> None:
 
 
 @app.post("/webhook")
-async def webhook(request: Request, background_tasks: BackgroundTasks):
+async def webhook(request: Request):
     body = await request.body()
     signature = request.headers.get("X-Line-Signature", "")
     if not _verify_signature(body, signature, _SECRET):

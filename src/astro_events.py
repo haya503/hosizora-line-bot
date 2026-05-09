@@ -4,6 +4,10 @@ from typing import Optional
 from skyfield.api import Loader, wgs84
 from skyfield import almanac
 
+_loader = Loader("/app/skyfield-data")
+_ts = _loader.timescale(builtin=True)
+_eph = _loader("de421.bsp")
+
 JST = timezone(timedelta(hours=9))
 _KNOWN_NEW_MOON = datetime(2000, 1, 6, 18, 14, tzinfo=timezone.utc)
 _LUNAR_CYCLE = 29.530589  # days
@@ -88,17 +92,14 @@ def get_planet_best_time(
 def get_astro_data(
     lat: float, lon: float, now_utc: datetime
 ) -> tuple[float, Optional[str], list[PlanetInfo], list[tuple[str, int]]]:
-    load = Loader("/tmp/skyfield-data")
-    ts = load.timescale()
-    eph = load("de421.bsp")
     date_jst = now_utc.astimezone(JST).date()
 
     moon_age = get_moon_age(now_utc)
-    moonrise = get_moonrise(ts, eph, lat, lon, date_jst)
+    moonrise = get_moonrise(_ts, _eph, lat, lon, date_jst)
 
     planets = []
     for key, name in _PLANET_KEYS.items():
-        transit_time, max_alt = get_planet_best_time(ts, eph, lat, lon, key, date_jst)
+        transit_time, max_alt = get_planet_best_time(_ts, _eph, lat, lon, key, date_jst)
         planets.append(PlanetInfo(name=name, transit_time=transit_time, max_altitude=max_alt))
 
     meteor_showers = get_upcoming_meteor_showers(date_jst)
