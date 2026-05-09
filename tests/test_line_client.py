@@ -1,7 +1,7 @@
 import pytest
 import requests as _requests
 from unittest.mock import MagicMock, patch
-from line_client import send_messages, send_image_message
+from line_client import send_messages, send_image_message, reply_message
 
 
 def _make_ok_resp():
@@ -59,3 +59,24 @@ def test_send_image_message_raises_when_all_fail():
     with patch("line_client.requests.post", return_value=_make_fail_resp()):
         with pytest.raises(RuntimeError, match="all targets"):
             send_image_message("tok", ["Ufail"], "https://example.com/image.jpg")
+
+
+def test_reply_message_posts_to_reply_endpoint():
+    with patch("line_client.requests.post") as mock_post:
+        mock_post.return_value = MagicMock(status_code=200)
+        reply_message("TOKEN", "REPLY_TOKEN_123", "こんにちは")
+        mock_post.assert_called_once()
+        url = mock_post.call_args[0][0]
+        assert "reply" in url
+
+
+def test_reply_message_includes_token_and_text():
+    with patch("line_client.requests.post") as mock_post:
+        mock_post.return_value = MagicMock(status_code=200)
+        reply_message("MY_TOKEN", "RT_456", "テストメッセージ")
+        call_kwargs = mock_post.call_args
+        headers = call_kwargs[1]["headers"]
+        body = call_kwargs[1]["json"]
+        assert headers["Authorization"] == "Bearer MY_TOKEN"
+        assert body["replyToken"] == "RT_456"
+        assert body["messages"][0]["text"] == "テストメッセージ"
