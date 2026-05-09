@@ -161,7 +161,12 @@ def _handle_mention(reply_token: str, text: str) -> None:
         reply_message(_TOKEN, reply_token, f"⚠️ 気象データ取得失敗: {e}")
         return
 
-    moon_age, moonrise, planets, _ = get_astro_data(lat, lon, datetime.now(timezone.utc))
+    try:
+        moon_age, moonrise, planets, _ = get_astro_data(lat, lon, datetime.now(timezone.utc))
+    except Exception as e:
+        reply_message(_TOKEN, reply_token, f"⚠️ 天体データ取得失敗: {e}")
+        return
+
     date_label = f"{req.target_date.month}月{req.target_date.day}日"
 
     if req.time_type == "night":
@@ -177,7 +182,10 @@ def _handle_mention(reply_token: str, text: str) -> None:
     else:
         msg = _format_hour_forecast(conditions, req.hour, moon_age, planets, date_label, req.location)
 
-    reply_message(_TOKEN, reply_token, msg)
+    try:
+        reply_message(_TOKEN, reply_token, msg)
+    except Exception:
+        pass
 
 
 @app.post("/webhook")
