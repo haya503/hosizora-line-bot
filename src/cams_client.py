@@ -29,6 +29,6 @@ def fetch_aod(lat: float, lon: float) -> float | None:
         if not vals:
             return None
         return round(sum(vals) / len(vals), 3)
-    except Exception as e:
+    except (requests.exceptions.RequestException, ValueError, KeyError, TypeError) as e:
         logger.warning("CAMS AOD fetch failed: %s", e)
         return None

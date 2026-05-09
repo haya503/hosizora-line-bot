@@ -1,3 +1,4 @@
+import requests
 from unittest.mock import MagicMock, patch
 from cams_client import fetch_aod
 
@@ -36,6 +37,6 @@ def test_fetch_aod_returns_none_when_all_none():
 
 
 def test_fetch_aod_returns_none_on_exception():
-    with patch("cams_client.requests.get", side_effect=Exception("timeout")):
+    with patch("cams_client.requests.get", side_effect=requests.exceptions.RequestException("timeout")):
         result = fetch_aod(32.8022, 130.7081)
     assert result is None
