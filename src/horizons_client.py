@@ -2,6 +2,7 @@ import logging
 import requests
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
+from typing import Optional
 
 JST = timezone(timedelta(hours=9))
 logger = logging.getLogger(__name__)
@@ -61,9 +62,8 @@ def fetch_visible_comets(lat: float, lon: float, date_jst: str) -> list[CometInf
     return result
 
 
-def _query_comet(comet_id: str, lat: float, lon: float, date_jst: str) -> "CometInfo | None":
+def _query_comet(comet_id: str, lat: float, lon: float, date_jst: str) -> Optional[CometInfo]:
     date_obj = date.fromisoformat(date_jst)
-    tomorrow = date_obj + timedelta(days=1)
     url = "https://ssd.jpl.nasa.gov/api/horizons.api"
     params = {
         "format": "text",
@@ -74,7 +74,7 @@ def _query_comet(comet_id: str, lat: float, lon: float, date_jst: str) -> "Comet
         "CENTER": "coord@399",
         "SITE_COORD": f"{lon},{lat},0",
         "START_TIME": f"{date_obj} 12:00",
-        "STOP_TIME": f"{tomorrow} 16:00",
+        "STOP_TIME": f"{date_obj} 15:00",
         "STEP_SIZE": "1 h",
         "QUANTITIES": "2,9",
     }
@@ -97,7 +97,10 @@ def _query_comet(comet_id: str, lat: float, lon: float, date_jst: str) -> "Comet
         logger.warning("Skyfield not available; skipping altitude computation for %s", comet_id)
         return None
 
-    from skyfield.api import Star, wgs84
+    try:
+        from skyfield.api import Star, wgs84
+    except ImportError:
+        return None
 
     location = wgs84.latlon(lat, lon)
     observer = _eph["earth"] + location

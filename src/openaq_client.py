@@ -1,11 +1,12 @@
 import logging
+from typing import Optional
 
 import requests
 
 logger = logging.getLogger(__name__)
 
 
-def fetch_pm25(lat: float, lon: float) -> float | None:
+def fetch_pm25(lat: float, lon: float) -> Optional[float]:
     url = "https://api.openaq.io/v3/locations"
     params = {
         "coordinates": f"{lat},{lon}",

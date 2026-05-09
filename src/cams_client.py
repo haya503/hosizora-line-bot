@@ -1,10 +1,12 @@
 import logging
+from typing import Optional
+
 import requests
 
 logger = logging.getLogger(__name__)
 
 
-def fetch_aod(lat: float, lon: float) -> float | None:
+def fetch_aod(lat: float, lon: float) -> Optional[float]:
     url = "https://air-quality-api.open-meteo.com/v1/air-quality"
     params = {
         "latitude": lat,
