@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 logger = logging.getLogger(__name__)
 
 import requests as _requests
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 
 from astro_events import get_astro_data
 from astro_client import fetch_constellations
@@ -205,7 +205,7 @@ def _handle_mention(reply_token: str, text: str) -> None:
 
 
 @app.post("/webhook")
-async def webhook(request: Request):
+async def webhook(request: Request, background_tasks: BackgroundTasks):
     body = await request.body()
     signature = request.headers.get("X-Line-Signature", "")
     if not _verify_signature(body, signature, _SECRET):
