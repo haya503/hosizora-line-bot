@@ -16,7 +16,7 @@ _HOURLY_EMOJI = {5: "✨", 4: "😊", 3: "🌤", 2: "⛅", 1: "☁️"}
 
 def calculate_hourly_score(
     cloud_cover: int, visibility: int, seeing: int, transparency: int,
-    weather_penalty: int = 0
+    weather_penalty: int = 0, aod=None, pm25=None
 ) -> int:
     score = 5
     if cloud_cover > 80:
@@ -28,6 +28,12 @@ def calculate_hourly_score(
     if seeing >= 5:
         score -= 1
     if transparency >= 6:
+        score -= 1
+    if aod is not None and aod > 0.4:
+        score -= 1
+    if pm25 is not None and pm25 > 75:
+        score -= 2
+    elif pm25 is not None and pm25 > 35:
         score -= 1
     score += weather_penalty
     return max(1, score)

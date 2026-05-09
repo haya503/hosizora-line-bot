@@ -75,6 +75,42 @@ def test_calculate_hourly_score_weather_penalty_minimum_score():
     # ペナルティを加えてもスコアが1未満にならない
     assert calculate_hourly_score(85, 5000, 5, 6, weather_penalty=-5) == 1
 
+def test_calculate_hourly_score_aod_penalty():
+    # AOD > 0.4 でスコアが1減る
+    assert calculate_hourly_score(10, 20000, 1, 1, aod=0.5) == 4
+
+def test_calculate_hourly_score_aod_no_penalty_below_threshold():
+    # AOD <= 0.4 はペナルティなし
+    assert calculate_hourly_score(10, 20000, 1, 1, aod=0.4) == 5
+
+def test_calculate_hourly_score_pm25_light_penalty():
+    # PM2.5 > 35 かつ <= 75 で -1
+    assert calculate_hourly_score(10, 20000, 1, 1, pm25=50.0) == 4
+
+def test_calculate_hourly_score_pm25_heavy_penalty():
+    # PM2.5 > 75 で -2
+    assert calculate_hourly_score(10, 20000, 1, 1, pm25=80.0) == 3
+
+def test_calculate_hourly_score_pm25_no_penalty_below_threshold():
+    # PM2.5 <= 35 はペナルティなし
+    assert calculate_hourly_score(10, 20000, 1, 1, pm25=35.0) == 5
+
+def test_calculate_hourly_score_aod_and_pm25_combined():
+    # AOD > 0.4 かつ PM2.5 > 35 で合計 -2
+    assert calculate_hourly_score(10, 20000, 1, 1, aod=0.5, pm25=50.0) == 3
+
+def test_calculate_hourly_score_none_aod_no_change():
+    # aod=None はペナルティなし（デフォルト動作）
+    assert calculate_hourly_score(10, 20000, 1, 1, aod=None) == 5
+
+def test_calculate_hourly_score_none_pm25_no_change():
+    # pm25=None はペナルティなし（デフォルト動作）
+    assert calculate_hourly_score(10, 20000, 1, 1, pm25=None) == 5
+
+def test_calculate_hourly_score_penalty_minimum_is_1_with_aod_pm25():
+    # すべてのペナルティを重ねても最低1
+    assert calculate_hourly_score(100, 0, 8, 8, weather_penalty=-5, aod=0.9, pm25=100.0) >= 1
+
 
 # --- format_stars ---
 
