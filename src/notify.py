@@ -91,7 +91,7 @@ def format_message(
         penalty = (weather_penalties or {}).get(reading.hour, 0)
         score = calculate_hourly_score(
             reading.cloud_cover, reading.visibility, ad.seeing, ad.transparency,
-            weather_penalty=penalty
+            weather_penalty=penalty, aod=aod, pm25=pm25
         )
         hourly_lines.append(f"{reading.hour}時 {_HOURLY_EMOJI[score]} {format_stars(score)}")
 
@@ -119,6 +119,8 @@ def format_message(
             astro_data.get(r.hour, HourlyAstroData(1, 1)).seeing,
             astro_data.get(r.hour, HourlyAstroData(1, 1)).transparency,
             weather_penalty=(weather_penalties or {}).get(r.hour, 0),
+            aod=aod,
+            pm25=pm25,
         )
         for r in conditions.hourly
     ]

@@ -230,6 +230,22 @@ def test_format_message_omits_aod_when_none():
     msg = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], aod=None)
     assert "AOD" not in msg
 
+def test_format_message_aod_reduces_score():
+    # aod=0.5 は >0.4 なので -1 ペナルティが掛かり、総合評価の★が減る
+    msg_no_aod = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], aod=None)
+    msg_with_aod = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], aod=0.5)
+    overall_no_aod = next(l for l in msg_no_aod.splitlines() if "総合評価" in l)
+    overall_with_aod = next(l for l in msg_with_aod.splitlines() if "総合評価" in l)
+    assert overall_with_aod.count("★") < overall_no_aod.count("★")
+
+def test_format_message_pm25_reduces_score():
+    # pm25=80.0 は >75 なので -2 ペナルティが掛かり、総合評価の★が減る
+    msg_no_pm25 = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], pm25=None)
+    msg_with_pm25 = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], pm25=80.0)
+    overall_no_pm25 = next(l for l in msg_no_pm25.splitlines() if "総合評価" in l)
+    overall_with_pm25 = next(l for l in msg_with_pm25.splitlines() if "総合評価" in l)
+    assert overall_with_pm25.count("★") < overall_no_pm25.count("★")
+
 
 # --- main() ---
 
