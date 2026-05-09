@@ -10,7 +10,7 @@ from apod_client import fetch_apod, translate_apod_explanation
 from line_client import send_messages, send_image_message
 from cams_client import fetch_aod
 from openaq_client import fetch_pm25
-from horizons_client import fetch_visible_comets
+from horizons_client import fetch_visible_comets, CometInfo
 
 JST = timezone(timedelta(hours=9))
 
@@ -76,7 +76,7 @@ def format_message(
     twilight_time: Optional[str] = None,
     weather_penalties: Optional[dict[int, int]] = None,
     location_name: Optional[str] = None,
-    comets: Optional[list] = None,
+    comets: Optional[list[CometInfo]] = None,
     aod: Optional[float] = None,
     pm25: Optional[float] = None,
 ) -> str:
@@ -130,7 +130,7 @@ def format_message(
     if pm25 is not None:
         humidity_line += f"　🏭 PM2.5: {pm25:.0f}μg/m³"
     if aod is not None:
-        humidity_line += f"　🌫 AOD: {aod}"
+        humidity_line += f"　🌫 AOD: {aod:.2f}"
 
     location_line = f"📍 {location_name}" if location_name else ""
     lines = ["🌙 今夜の星空予報", *(([location_line, ""] if location_line else [""]))]
