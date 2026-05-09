@@ -43,13 +43,16 @@ def test_parse_ephemeris_empty_on_no_data():
     assert rows == []
 
 
-def test_fetch_visible_comets_returns_list():
+def test_fetch_visible_comets_returns_empty_without_skyfield():
+    # skyfield data (de421.bsp) is not available in test env,
+    # so altitude computation is skipped and result is empty
     mock = MagicMock()
     mock.text = SAMPLE_HORIZONS_TEXT
     mock.raise_for_status.return_value = None
-    with patch("horizons_client.requests.get", return_value=mock):
+    with patch("horizons_client.requests.get", return_value=mock), \
+         patch("horizons_client._load_skyfield", return_value=False):
         result = fetch_visible_comets(32.8022, 130.7081, "2026-05-09")
-    assert isinstance(result, list)
+    assert result == []
 
 
 def test_fetch_visible_comets_filters_faint():

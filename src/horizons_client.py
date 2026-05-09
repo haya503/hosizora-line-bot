@@ -32,7 +32,8 @@ def _load_skyfield():
                 _ts = loader.timescale(builtin=True)
                 _eph = loader("de421.bsp")
                 return True
-            except Exception:
+            except Exception as e:
+                logger.warning("Skyfield loader failed at %s: %s", path, e)
                 continue
         return False
     except ImportError:
@@ -54,7 +55,8 @@ def fetch_visible_comets(lat: float, lon: float, date_jst: str) -> list[CometInf
             info = _query_comet(comet_id, lat, lon, date_jst)
             if info is not None:
                 result.append(info)
-        except Exception:
+        except Exception as e:
+            logger.warning("Unexpected error querying comet %s: %s", comet_id, e)
             continue
     return result
 
