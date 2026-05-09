@@ -66,6 +66,7 @@ def format_message(
     constellations: list[str],
     twilight_time: Optional[str] = None,
     weather_penalties: Optional[dict[int, int]] = None,
+    location_name: Optional[str] = None,
 ) -> str:
     emoji, phase_name = moon_phase(moon_age)
     moon_str = f"{phase_name}（月齢{moon_age:.0f}）"
@@ -106,7 +107,8 @@ def format_message(
     ]
     overall = round(sum(scores) / len(scores)) if scores else 1
 
-    lines = ["🌙 今夜の星空予報", ""]
+    location_line = f"📍 {location_name}" if location_name else ""
+    lines = ["🌙 今夜の星空予報", *(([location_line, ""] if location_line else [""]))]
     if twilight_time:
         lines += [f"🌑 天文薄明: {twilight_time}（この時刻から観測ベスト）", ""]
     lines += [
@@ -167,6 +169,7 @@ def main() -> None:
         conditions, astro_data, moon_age, moonrise, planets, meteor_showers, constellations,
         twilight_time=twilight_time,
         weather_penalties=weather_penalties,
+        location_name=cfg.LOCATION_NAME,
     )
     send_messages(cfg.LINE_CHANNEL_ACCESS_TOKEN, cfg.LINE_NOTIFY_TARGETS, message)
 

@@ -18,6 +18,11 @@ def _parse_targets(raw: str) -> list[str]:
     return result
 
 
+FIXED_LOCATION_NAME = "熊本市中央区横手3丁目"
+FIXED_LOCATION_LAT = 32.8022
+FIXED_LOCATION_LON = 130.7081
+
+
 def load() -> SimpleNamespace:
     load_dotenv()
     targets = _parse_targets(os.environ["LINE_NOTIFY_TARGETS"])
@@ -28,8 +33,9 @@ def load() -> SimpleNamespace:
     return SimpleNamespace(
         LINE_CHANNEL_ACCESS_TOKEN=os.environ["LINE_CHANNEL_ACCESS_TOKEN"],
         LINE_NOTIFY_TARGETS=targets,
-        LOCATION_LAT=float(os.environ["LOCATION_LAT"]),
-        LOCATION_LON=float(os.environ["LOCATION_LON"]),
+        LOCATION_NAME=FIXED_LOCATION_NAME,
+        LOCATION_LAT=FIXED_LOCATION_LAT,
+        LOCATION_LON=FIXED_LOCATION_LON,
         HOSHIMIRU_API_TOKEN=os.environ.get("HOSHIMIRU_API_TOKEN", ""),
         NASA_APOD_API_KEY=os.environ.get("NASA_APOD_API_KEY", "DEMO_KEY"),
         JMA_AREA_CODE=os.environ["JMA_AREA_CODE"],
