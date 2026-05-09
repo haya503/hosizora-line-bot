@@ -1,4 +1,8 @@
+import logging
+
 import requests
+
+logger = logging.getLogger(__name__)
 
 
 def fetch_pm25(lat: float, lon: float) -> float | None:
@@ -16,9 +20,10 @@ def fetch_pm25(lat: float, lon: float) -> float | None:
         for loc in resp.json().get("results", []):
             for sensor in loc.get("sensors", []):
                 if sensor.get("parameter", {}).get("name") == "pm25":
-                    val = sensor.get("latest", {}).get("value")
+                    val = (sensor.get("latest") or {}).get("value")
                     if val is not None:
                         return float(val)
         return None
-    except Exception:
+    except requests.exceptions.RequestException as e:
+        logger.warning("OpenAQ fetch failed: %s", e)
         return None

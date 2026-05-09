@@ -1,3 +1,4 @@
+import requests
 from unittest.mock import MagicMock, patch
 from openaq_client import fetch_pm25
 
@@ -46,6 +47,13 @@ def test_fetch_pm25_returns_none_on_empty_results():
 
 
 def test_fetch_pm25_returns_none_on_exception():
-    with patch("openaq_client.requests.get", side_effect=Exception("network error")):
+    with patch("openaq_client.requests.get", side_effect=requests.exceptions.RequestException("network error")):
+        result = fetch_pm25(32.8022, 130.7081)
+    assert result is None
+
+
+def test_fetch_pm25_returns_none_on_http_error():
+    with patch("openaq_client.requests.get") as mock_get:
+        mock_get.return_value.raise_for_status.side_effect = requests.exceptions.HTTPError("429")
         result = fetch_pm25(32.8022, 130.7081)
     assert result is None
