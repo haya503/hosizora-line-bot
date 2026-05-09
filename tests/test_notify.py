@@ -4,6 +4,7 @@ from unittest.mock import patch
 from sky_forecast import SkyConditions, HourlySkyReading
 from astro_events import PlanetInfo
 from astro_client import HourlyAstroData
+from horizons_client import CometInfo
 from notify import calculate_hourly_score, format_stars, format_message, main
 
 _SAMPLE_HOURLY = [
@@ -74,6 +75,42 @@ def test_calculate_hourly_score_weather_penalty_minus_2():
 def test_calculate_hourly_score_weather_penalty_minimum_score():
     # ペナルティを加えてもスコアが1未満にならない
     assert calculate_hourly_score(85, 5000, 5, 6, weather_penalty=-5) == 1
+
+def test_calculate_hourly_score_aod_penalty():
+    # AOD > 0.4 でスコアが1減る
+    assert calculate_hourly_score(10, 20000, 1, 1, aod=0.5) == 4
+
+def test_calculate_hourly_score_aod_no_penalty_below_threshold():
+    # AOD <= 0.4 はペナルティなし
+    assert calculate_hourly_score(10, 20000, 1, 1, aod=0.4) == 5
+
+def test_calculate_hourly_score_pm25_light_penalty():
+    # PM2.5 > 35 かつ <= 75 で -1
+    assert calculate_hourly_score(10, 20000, 1, 1, pm25=50.0) == 4
+
+def test_calculate_hourly_score_pm25_heavy_penalty():
+    # PM2.5 > 75 で -2
+    assert calculate_hourly_score(10, 20000, 1, 1, pm25=80.0) == 3
+
+def test_calculate_hourly_score_pm25_no_penalty_below_threshold():
+    # PM2.5 <= 35 はペナルティなし
+    assert calculate_hourly_score(10, 20000, 1, 1, pm25=35.0) == 5
+
+def test_calculate_hourly_score_aod_and_pm25_combined():
+    # AOD > 0.4 かつ PM2.5 > 35 で合計 -2
+    assert calculate_hourly_score(10, 20000, 1, 1, aod=0.5, pm25=50.0) == 3
+
+def test_calculate_hourly_score_none_aod_no_change():
+    # aod=None はペナルティなし（デフォルト動作）
+    assert calculate_hourly_score(10, 20000, 1, 1, aod=None) == 5
+
+def test_calculate_hourly_score_none_pm25_no_change():
+    # pm25=None はペナルティなし（デフォルト動作）
+    assert calculate_hourly_score(10, 20000, 1, 1, pm25=None) == 5
+
+def test_calculate_hourly_score_penalty_minimum_is_1_with_aod_pm25():
+    # すべてのペナルティを重ねても最低1
+    assert calculate_hourly_score(100, 0, 8, 8, weather_penalty=-5, aod=0.9, pm25=100.0) >= 1
 
 
 # --- format_stars ---
@@ -164,6 +201,52 @@ def test_format_message_weather_penalties_lower_score():
     assert lines_no != lines_with
 
 
+SAMPLE_COMETS = [CometInfo(name="C/2025 E3", best_time="22:00", altitude=28.5, magnitude=6.2)]
+
+def test_format_message_shows_comet_info():
+    msg = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], comets=SAMPLE_COMETS)
+    assert "C/2025 E3" in msg
+    assert "22:00" in msg
+
+def test_format_message_no_comets_no_comet_line():
+    msg = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], comets=[])
+    assert "が見頃" not in msg
+
+def test_format_message_shows_pm25():
+    msg = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], pm25=12.0)
+    assert "PM2.5" in msg
+    assert "12" in msg
+
+def test_format_message_shows_aod():
+    msg = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], aod=0.15)
+    assert "AOD" in msg
+    assert "0.15" in msg
+
+def test_format_message_omits_pm25_when_none():
+    msg = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], pm25=None)
+    assert "PM2.5" not in msg
+
+def test_format_message_omits_aod_when_none():
+    msg = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], aod=None)
+    assert "AOD" not in msg
+
+def test_format_message_aod_reduces_score():
+    # aod=0.5 は >0.4 なので -1 ペナルティが掛かり、総合評価の★が減る
+    msg_no_aod = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], aod=None)
+    msg_with_aod = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], aod=0.5)
+    overall_no_aod = next(l for l in msg_no_aod.splitlines() if "総合評価" in l)
+    overall_with_aod = next(l for l in msg_with_aod.splitlines() if "総合評価" in l)
+    assert overall_with_aod.count("★") < overall_no_aod.count("★")
+
+def test_format_message_pm25_reduces_score():
+    # pm25=80.0 は >75 なので -2 ペナルティが掛かり、総合評価の★が減る
+    msg_no_pm25 = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], pm25=None)
+    msg_with_pm25 = format_message(SAMPLE_CONDITIONS, SAMPLE_ASTRO, 5.0, None, [], [], [], pm25=80.0)
+    overall_no_pm25 = next(l for l in msg_no_pm25.splitlines() if "総合評価" in l)
+    overall_with_pm25 = next(l for l in msg_with_pm25.splitlines() if "総合評価" in l)
+    assert overall_with_pm25.count("★") < overall_no_pm25.count("★")
+
+
 # --- main() ---
 
 @patch("notify.send_image_message")
@@ -176,8 +259,12 @@ def test_format_message_weather_penalties_lower_score():
 @patch("notify.fetch_7timer_astro")
 @patch("notify.get_astro_data")
 @patch("notify.fetch_sky_conditions")
+@patch("notify.fetch_visible_comets")
+@patch("notify.fetch_pm25")
+@patch("notify.fetch_aod")
 @patch("notify.config")
-def test_main_happy_path(mock_config, mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
+def test_main_happy_path(mock_config, mock_fetch_aod, mock_fetch_pm25, mock_fetch_comets,
+                         mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
                          mock_twilight, mock_penalties, mock_apod, mock_summarize, mock_send_image):
     mock_config.load.return_value = FAKE_CFG
     mock_fetch.return_value = SAMPLE_CONDITIONS
@@ -187,6 +274,9 @@ def test_main_happy_path(mock_config, mock_fetch, mock_astro, mock_7timer, mock_
     mock_twilight.return_value = None
     mock_penalties.return_value = None
     mock_apod.return_value = None
+    mock_fetch_aod.return_value = None
+    mock_fetch_pm25.return_value = None
+    mock_fetch_comets.return_value = []
 
     main()
 
@@ -219,8 +309,12 @@ def test_main_weather_error_sends_error_notification(mock_config, mock_fetch, mo
 @patch("notify.fetch_7timer_astro")
 @patch("notify.get_astro_data")
 @patch("notify.fetch_sky_conditions")
+@patch("notify.fetch_visible_comets")
+@patch("notify.fetch_pm25")
+@patch("notify.fetch_aod")
 @patch("notify.config")
-def test_main_7timer_failure_still_sends(mock_config, mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
+def test_main_7timer_failure_still_sends(mock_config, mock_fetch_aod, mock_fetch_pm25, mock_fetch_comets,
+                                         mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
                                          mock_twilight, mock_penalties, mock_apod, mock_summarize, mock_send_image):
     mock_config.load.return_value = FAKE_CFG
     mock_fetch.return_value = SAMPLE_CONDITIONS
@@ -230,6 +324,9 @@ def test_main_7timer_failure_still_sends(mock_config, mock_fetch, mock_astro, mo
     mock_twilight.return_value = None
     mock_penalties.return_value = None
     mock_apod.return_value = None
+    mock_fetch_aod.return_value = None
+    mock_fetch_pm25.return_value = None
+    mock_fetch_comets.return_value = []
 
     main()
 
@@ -247,8 +344,12 @@ def test_main_7timer_failure_still_sends(mock_config, mock_fetch, mock_astro, mo
 @patch("notify.fetch_7timer_astro")
 @patch("notify.get_astro_data")
 @patch("notify.fetch_sky_conditions")
+@patch("notify.fetch_visible_comets")
+@patch("notify.fetch_pm25")
+@patch("notify.fetch_aod")
 @patch("notify.config")
-def test_main_constellation_failure_still_sends(mock_config, mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
+def test_main_constellation_failure_still_sends(mock_config, mock_fetch_aod, mock_fetch_pm25, mock_fetch_comets,
+                                                 mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
                                                  mock_twilight, mock_penalties, mock_apod, mock_summarize, mock_send_image):
     mock_config.load.return_value = FAKE_CFG
     mock_fetch.return_value = SAMPLE_CONDITIONS
@@ -258,6 +359,9 @@ def test_main_constellation_failure_still_sends(mock_config, mock_fetch, mock_as
     mock_twilight.return_value = None
     mock_penalties.return_value = None
     mock_apod.return_value = None
+    mock_fetch_aod.return_value = None
+    mock_fetch_pm25.return_value = None
+    mock_fetch_comets.return_value = []
 
     main()
 

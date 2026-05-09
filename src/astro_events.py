@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
+import os
 from skyfield.api import Loader, wgs84
 from skyfield import almanac
 
-_loader = Loader("/app/skyfield-data")
+_loader = Loader(os.environ.get("SKYFIELD_DATA_PATH", "/app/skyfield-data"))
 _ts = _loader.timescale(builtin=True)
 _eph = _loader("de421.bsp")
 
