@@ -178,6 +178,15 @@ def test_format_hour_forecast_shows_pm25():
     assert "PM2.5: 20" in msg
 
 
+def test_format_night_forecast_shows_twilight():
+    msg = _format_night_forecast(
+        _make_conditions(), 5.0, None, [], [], "5月10日", "東京",
+        twilight="20:34",
+    )
+    assert "20:34" in msg
+    assert "天文薄明" in msg
+
+
 # --- _handle_mention calls CAMS/OpenAQ/Horizons ---
 
 from webhook import _handle_mention
@@ -211,3 +220,30 @@ def test_handle_mention_calls_aod_pm25_comets(monkeypatch):
     assert len(aod_calls) == 1
     assert len(pm25_calls) == 1
     assert len(comet_calls) == 1
+
+
+def test_handle_mention_calls_twilight(monkeypatch):
+    conditions = _make_conditions()
+
+    monkeypatch.setattr("webhook._geocode", lambda loc: (33.0, 130.0))
+    monkeypatch.setattr("webhook.fetch_sky_conditions", lambda *a, **kw: conditions)
+    monkeypatch.setattr("webhook.get_astro_data", lambda *a, **kw: (5.0, None, [], None))
+    monkeypatch.setattr("webhook.fetch_constellations", lambda *a, **kw: [])
+    monkeypatch.setattr("webhook.fetch_aod", lambda *a: None)
+    monkeypatch.setattr("webhook.fetch_pm25", lambda *a: None)
+    monkeypatch.setattr("webhook.fetch_visible_comets", lambda *a: [])
+
+    twilight_calls = []
+    monkeypatch.setattr(
+        "webhook.fetch_astronomical_twilight",
+        lambda lat, lon, d: twilight_calls.append((lat, lon, d)) or "20:34",
+    )
+
+    replied = []
+    monkeypatch.setattr("webhook.reply_message", lambda tok, rt, msg: replied.append(msg))
+
+    _handle_mention("tok", "@Bot 今夜 夜 東京")
+
+    assert len(twilight_calls) == 1
+    assert replied and "天文薄明" in replied[0]
+    assert "20:34" in replied[0]

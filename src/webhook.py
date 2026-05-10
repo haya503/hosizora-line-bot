@@ -17,6 +17,7 @@ from astro_events import get_astro_data
 from astro_client import fetch_constellations
 from cams_client import fetch_aod
 from horizons_client import CometInfo, fetch_visible_comets
+from usno_client import fetch_astronomical_twilight
 from line_client import reply_message
 from message_parser import ERROR_MESSAGE, ParseError, parse_mention_text
 from notify import calculate_hourly_score, format_stars, moon_phase
@@ -84,6 +85,7 @@ def _format_night_forecast(
     comets: list[CometInfo] | None = None,
     aod: float | None = None,
     pm25: float | None = None,
+    twilight: str | None = None,
 ) -> str:
     emoji, phase_name = moon_phase(moon_age)
     moon_str = f"{phase_name}（月齢{moon_age:.0f}）"
@@ -116,7 +118,10 @@ def _format_night_forecast(
     if aod is not None:
         humidity_line += f"　🌫 AOD: {aod:.2f}"
 
-    lines = [f"🌙 {date_label} {location_name}の星空予報（夜）", "", "時間帯別:", *hourly_lines, ""]
+    header = [f"🌙 {date_label} {location_name}の星空予報（夜）"]
+    if twilight:
+        header += ["", f"🌑 天文薄明: {twilight}（この時刻から観測ベスト）"]
+    lines = [*header, "", "時間帯別:", *hourly_lines, ""]
     lines += [
         humidity_line,
         f"{emoji} {moon_str}",
@@ -227,9 +232,11 @@ def _handle_mention(reply_token: str, text: str) -> None:
         except Exception:
             comets = []
         _log.info("comets %.1fs", time.monotonic() - t0)
+        twilight = fetch_astronomical_twilight(lat, lon, req.target_date.isoformat())
+        _log.info("twilight %.1fs", time.monotonic() - t0)
         msg = _format_night_forecast(
             conditions, moon_age, moonrise, planets, constellations, date_label, req.location,
-            comets=comets, aod=aod, pm25=pm25,
+            comets=comets, aod=aod, pm25=pm25, twilight=twilight,
         )
     else:
         msg = _format_hour_forecast(
