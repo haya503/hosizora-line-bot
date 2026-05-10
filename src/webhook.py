@@ -15,9 +15,13 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 
 from astro_events import get_astro_data
 from astro_client import fetch_constellations
+from cams_client import fetch_aod
+from horizons_client import CometInfo, fetch_visible_comets
+from usno_client import fetch_astronomical_twilight
 from line_client import reply_message
 from message_parser import ERROR_MESSAGE, ParseError, parse_mention_text
 from notify import calculate_hourly_score, format_stars, moon_phase
+from openaq_client import fetch_pm25
 from sky_forecast import SkyConditions, fetch_sky_conditions
 
 JST = timezone(timedelta(hours=9))
@@ -78,6 +82,10 @@ def _format_night_forecast(
     constellations: list[str],
     date_label: str,
     location_name: str,
+    comets: list[CometInfo] | None = None,
+    aod: float | None = None,
+    pm25: float | None = None,
+    twilight: str | None = None,
 ) -> str:
     emoji, phase_name = moon_phase(moon_age)
     moon_str = f"{phase_name}（月齢{moon_age:.0f}）"
@@ -96,12 +104,26 @@ def _format_night_forecast(
         f"・{p.name}が南中 {p.transit_time}（高度 {p.max_altitude}°）"
         for p in planets if p.transit_time
     ]
+    if comets:
+        for c in comets:
+            event_lines.append(
+                f"・{c.name} が見頃 {c.best_time}（高度 {c.altitude}°, 等級 {c.magnitude}）"
+            )
     if not event_lines:
         event_lines = ["・特になし"]
 
-    lines = [f"🌙 {date_label} {location_name}の星空予報（夜）", "", "時間帯別:", *hourly_lines, ""]
+    humidity_line = f"💧 湿度: {conditions.humidity}%　🌬 風速: {conditions.wind_speed}m/s"
+    if pm25 is not None:
+        humidity_line += f"　🏭 PM2.5: {pm25:.0f}μg/m³"
+    if aod is not None:
+        humidity_line += f"　🌫 AOD: {aod:.2f}"
+
+    header = [f"🌙 {date_label} {location_name}の星空予報（夜）"]
+    if twilight:
+        header += ["", f"🌑 天文薄明: {twilight}（この時刻から観測ベスト）"]
+    lines = [*header, "", "時間帯別:", *hourly_lines, ""]
     lines += [
-        f"💧 湿度: {conditions.humidity}%　🌬 風速: {conditions.wind_speed}m/s",
+        humidity_line,
         f"{emoji} {moon_str}",
         "",
         "🔭 今夜のポイント:",
@@ -120,6 +142,8 @@ def _format_hour_forecast(
     planets: list,
     date_label: str,
     location_name: str,
+    aod: float | None = None,
+    pm25: float | None = None,
 ) -> str:
     reading = next((r for r in conditions.hourly if r.hour == hour), None)
     if reading is None:
@@ -138,12 +162,18 @@ def _format_hour_forecast(
     if not event_lines:
         event_lines = ["・特になし"]
 
+    humidity_line = f"💧 湿度: {conditions.humidity}%　🌬 風速: {conditions.wind_speed}m/s"
+    if pm25 is not None:
+        humidity_line += f"　🏭 PM2.5: {pm25:.0f}μg/m³"
+    if aod is not None:
+        humidity_line += f"　🌫 AOD: {aod:.2f}"
+
     lines = [
         f"🌙 {date_label} {hour}時 {location_name}の星空予報",
         "",
         f"{_HOURLY_EMOJI[score]} {format_stars(score)}",
         "",
-        f"💧 湿度: {conditions.humidity}%　🌬 風速: {conditions.wind_speed}m/s",
+        humidity_line,
         f"{emoji} {phase_name}（月齢{moon_age:.0f}）",
         "",
         "🔭 見どころ:",
@@ -183,6 +213,11 @@ def _handle_mention(reply_token: str, text: str) -> None:
         reply_message(_TOKEN, reply_token, f"⚠️ 天体データ取得失敗: {e}")
         return
 
+    aod = fetch_aod(lat, lon)
+    _log.info("aod %.1fs", time.monotonic() - t0)
+    pm25 = fetch_pm25(lat, lon)
+    _log.info("pm25 %.1fs", time.monotonic() - t0)
+
     date_label = f"{req.target_date.month}月{req.target_date.day}日"
 
     if req.time_type == "night":
@@ -192,11 +227,22 @@ def _handle_mention(reply_token: str, text: str) -> None:
             )
         except Exception:
             constellations = []
+        try:
+            comets = fetch_visible_comets(lat, lon, req.target_date.isoformat())
+        except Exception:
+            comets = []
+        _log.info("comets %.1fs", time.monotonic() - t0)
+        twilight = fetch_astronomical_twilight(lat, lon, req.target_date.isoformat())
+        _log.info("twilight %.1fs", time.monotonic() - t0)
         msg = _format_night_forecast(
-            conditions, moon_age, moonrise, planets, constellations, date_label, req.location
+            conditions, moon_age, moonrise, planets, constellations, date_label, req.location,
+            comets=comets, aod=aod, pm25=pm25, twilight=twilight,
         )
     else:
-        msg = _format_hour_forecast(conditions, req.hour, moon_age, planets, date_label, req.location)
+        msg = _format_hour_forecast(
+            conditions, req.hour, moon_age, planets, date_label, req.location,
+            aod=aod, pm25=pm25,
+        )
 
     try:
         reply_message(_TOKEN, reply_token, msg)
