@@ -117,3 +117,97 @@ def test_non_mention_event_does_not_trigger():
         resp = client.post("/webhook", content=body, headers={"X-Line-Signature": _sig(body)})
     assert resp.status_code == 200
     mock_handle.assert_not_called()
+
+
+# --- _format_night_forecast with AOD/PM2.5/comets ---
+
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../src"))
+
+from sky_forecast import SkyConditions, HourlySkyReading
+from horizons_client import CometInfo
+from webhook import _format_night_forecast, _format_hour_forecast
+
+
+def _make_conditions():
+    return SkyConditions(
+        humidity=60,
+        wind_speed=2.0,
+        hourly=[HourlySkyReading(hour=21, cloud_cover=10, visibility=20000)],
+    )
+
+
+def test_format_night_forecast_shows_aod():
+    msg = _format_night_forecast(
+        _make_conditions(), 5.0, None, [], [], "5月10日", "東京",
+        aod=0.52,
+    )
+    assert "AOD: 0.52" in msg
+
+
+def test_format_night_forecast_shows_pm25():
+    msg = _format_night_forecast(
+        _make_conditions(), 5.0, None, [], [], "5月10日", "東京",
+        pm25=45.0,
+    )
+    assert "PM2.5: 45" in msg
+
+
+def test_format_night_forecast_shows_comet():
+    comet = CometInfo(name="C/2025 E3", best_time="22:00", altitude=35.0, magnitude=6.5)
+    msg = _format_night_forecast(
+        _make_conditions(), 5.0, None, [], [], "5月10日", "東京",
+        comets=[comet],
+    )
+    assert "C/2025 E3" in msg
+
+
+def test_format_hour_forecast_shows_aod():
+    msg = _format_hour_forecast(
+        _make_conditions(), 21, 5.0, [], "5月10日", "東京",
+        aod=0.35,
+    )
+    assert "AOD: 0.35" in msg
+
+
+def test_format_hour_forecast_shows_pm25():
+    msg = _format_hour_forecast(
+        _make_conditions(), 21, 5.0, [], "5月10日", "東京",
+        pm25=20.0,
+    )
+    assert "PM2.5: 20" in msg
+
+
+# --- _handle_mention calls CAMS/OpenAQ/Horizons ---
+
+from webhook import _handle_mention
+
+
+def test_handle_mention_calls_aod_pm25_comets(monkeypatch):
+    from datetime import date
+    from sky_forecast import SkyConditions, HourlySkyReading
+    from astro_events import PlanetInfo
+
+    conditions = _make_conditions()
+    planets = []
+    moon_age = 5.0
+
+    monkeypatch.setattr("webhook._geocode", lambda loc: (33.0, 130.0))
+    monkeypatch.setattr("webhook.fetch_sky_conditions", lambda *a, **kw: conditions)
+    monkeypatch.setattr("webhook.get_astro_data", lambda *a, **kw: (moon_age, None, planets, None))
+    monkeypatch.setattr("webhook.fetch_constellations", lambda *a, **kw: [])
+
+    aod_calls = []
+    pm25_calls = []
+    comet_calls = []
+
+    monkeypatch.setattr("webhook.fetch_aod", lambda lat, lon: aod_calls.append((lat, lon)) or 0.3)
+    monkeypatch.setattr("webhook.fetch_pm25", lambda lat, lon: pm25_calls.append((lat, lon)) or 15.0)
+    monkeypatch.setattr("webhook.fetch_visible_comets", lambda lat, lon, d: comet_calls.append((lat, lon, d)) or [])
+    monkeypatch.setattr("webhook.reply_message", lambda *a, **kw: None)
+
+    _handle_mention("tok", "@Bot 今夜 夜 東京")
+
+    assert len(aod_calls) == 1
+    assert len(pm25_calls) == 1
+    assert len(comet_calls) == 1
