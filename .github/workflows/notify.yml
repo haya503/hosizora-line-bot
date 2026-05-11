@@ -35,3 +35,4 @@ jobs:
           NASA_APOD_API_KEY: ${{ secrets.NASA_APOD_API_KEY }}
           JMA_AREA_CODE: ${{ secrets.JMA_AREA_CODE }}
           DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
+          SKYFIELD_DATA_PATH: /tmp/skyfield-data
