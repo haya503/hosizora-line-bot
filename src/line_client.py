@@ -1,23 +1,34 @@
 import sys
+import time
 import requests
 
 _PUSH_URL = "https://api.line.me/v2/bot/message/push"
+_MAX_RETRIES = 2
+_DEFAULT_RETRY_WAIT = 60
+
+
+def _post_with_retry(token: str, json_body: dict) -> requests.Response:
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
+    }
+    for attempt in range(_MAX_RETRIES + 1):
+        resp = requests.post(_PUSH_URL, headers=headers, json=json_body, timeout=10)
+        if resp.status_code == 429 and attempt < _MAX_RETRIES:
+            wait = int(resp.headers.get("Retry-After", _DEFAULT_RETRY_WAIT))
+            print(f"LINE 429: Retry-After {wait}s (attempt {attempt + 1}/{_MAX_RETRIES})", file=sys.stderr)
+            time.sleep(wait)
+            continue
+        resp.raise_for_status()
+        return resp
+    return resp
 
 
 def send_messages(token: str, targets: list[str], text: str) -> None:
     failures: list[tuple[str, Exception]] = []
     for target in targets:
         try:
-            resp = requests.post(
-                _PUSH_URL,
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {token}",
-                },
-                json={"to": target, "messages": [{"type": "text", "text": text}]},
-                timeout=10,
-            )
-            resp.raise_for_status()
+            _post_with_retry(token, {"to": target, "messages": [{"type": "text", "text": text}]})
         except requests.RequestException as e:
             print(f"LINE send failed for {target}: {e}", file=sys.stderr)
             failures.append((target, e))
@@ -27,29 +38,19 @@ def send_messages(token: str, targets: list[str], text: str) -> None:
 
 
 def send_image_message(token: str, targets: list[str], image_url: str) -> None:
-    """LINE image メッセージを各ターゲットに送信する。"""
     failures: list[tuple[str, Exception]] = []
     for target in targets:
         try:
-            resp = requests.post(
-                _PUSH_URL,
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {token}",
-                },
-                json={
-                    "to": target,
-                    "messages": [
-                        {
-                            "type": "image",
-                            "originalContentUrl": image_url,
-                            "previewImageUrl": image_url,
-                        }
-                    ],
-                },
-                timeout=10,
-            )
-            resp.raise_for_status()
+            _post_with_retry(token, {
+                "to": target,
+                "messages": [
+                    {
+                        "type": "image",
+                        "originalContentUrl": image_url,
+                        "previewImageUrl": image_url,
+                    }
+                ],
+            })
         except requests.RequestException as e:
             print(f"LINE send failed for {target}: {e}", file=sys.stderr)
             failures.append((target, e))
