@@ -79,6 +79,7 @@ def format_message(
     comets: Optional[list[CometInfo]] = None,
     aod: Optional[float] = None,
     pm25: Optional[float] = None,
+    apod_title: Optional[str] = None,
 ) -> str:
     emoji, phase_name = moon_phase(moon_age)
     moon_str = f"{phase_name}（月齢{moon_age:.0f}）"
@@ -152,6 +153,9 @@ def format_message(
 
     lines += ["", f"総合評価: {format_stars(overall)}"]
 
+    if apod_title:
+        lines += ["", f"📷 今日のNASA天文写真", apod_title]
+
     return "\n".join(lines)
 
 
@@ -205,6 +209,16 @@ def main() -> None:
     except Exception:
         comets = []
 
+    # APOD タイトルを取得して予報メッセージに統合（メッセージ数削減）
+    apod_result = fetch_apod(cfg.NASA_APOD_API_KEY)
+    apod_image_url: Optional[str] = None
+    if apod_result:
+        image_url, title, _ = apod_result
+        translated_title = translate_apod_explanation(title, cfg.DEEPL_API_KEY) or title
+        apod_image_url = image_url
+    else:
+        translated_title = None
+
     message = format_message(
         conditions, astro_data, moon_age, moonrise, planets, meteor_showers, constellations,
         twilight_time=twilight_time,
@@ -213,24 +227,18 @@ def main() -> None:
         comets=comets,
         aod=aod,
         pm25=pm25,
+        apod_title=translated_title,
     )
-    send_messages(cfg.LINE_CHANNEL_ACCESS_TOKEN, cfg.LINE_NOTIFY_TARGETS, message)
+    try:
+        send_messages(cfg.LINE_CHANNEL_ACCESS_TOKEN, cfg.LINE_NOTIFY_TARGETS, message)
+    except RuntimeError as e:
+        print(f"⚠️ LINE送信失敗（月間上限超過の可能性）: {e}", file=sys.stderr)
+        return
 
-    # APOD: 画像と日本語要約を送信（失敗してもスキップ）
-    apod_result = fetch_apod(cfg.NASA_APOD_API_KEY)
-    if apod_result:
-        image_url, title, explanation = apod_result
-        translated_title = translate_apod_explanation(title, cfg.DEEPL_API_KEY) or title
+    # APOD 画像のみ送信（タイトルは上の予報メッセージに統合済み）
+    if apod_image_url:
         try:
-            send_messages(
-                cfg.LINE_CHANNEL_ACCESS_TOKEN,
-                cfg.LINE_NOTIFY_TARGETS,
-                f"📷 今日のNASA天文写真\n{translated_title}"
-            )
-        except Exception:
-            pass
-        try:
-            send_image_message(cfg.LINE_CHANNEL_ACCESS_TOKEN, cfg.LINE_NOTIFY_TARGETS, image_url)
+            send_image_message(cfg.LINE_CHANNEL_ACCESS_TOKEN, cfg.LINE_NOTIFY_TARGETS, apod_image_url)
         except Exception:
             pass
 
