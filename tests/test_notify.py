@@ -26,6 +26,7 @@ FAKE_CFG = SimpleNamespace(
     JMA_AREA_CODE="130000",
     NASA_APOD_API_KEY="DEMO_KEY",
     DEEPL_API_KEY="",
+    DISCORD_WEBHOOK_URL="",
 )
 
 
