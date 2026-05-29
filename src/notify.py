@@ -236,10 +236,13 @@ def main() -> None:
     except RuntimeError as e:
         print(f"⚠️ LINE送信失敗: {e}", file=sys.stderr)
         if cfg.DISCORD_WEBHOOK_URL:
-            if apod_image_url:
-                discord_client.send_embed_with_image(cfg.DISCORD_WEBHOOK_URL, message, apod_image_url)
-            else:
-                discord_client.send_message(cfg.DISCORD_WEBHOOK_URL, message)
+            try:
+                if apod_image_url:
+                    discord_client.send_embed_with_image(cfg.DISCORD_WEBHOOK_URL, message, apod_image_url)
+                else:
+                    discord_client.send_message(cfg.DISCORD_WEBHOOK_URL, message)
+            except Exception as discord_err:
+                print(f"⚠️ Discord送信失敗: {discord_err}", file=sys.stderr)
         return
 
     # APOD 画像のみ送信（タイトルは上の予報メッセージに統合済み）
