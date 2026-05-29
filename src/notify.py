@@ -2,6 +2,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 import config
+import discord_client
 from sky_forecast import fetch_sky_conditions, SkyConditions
 from astro_events import get_astro_data, PlanetInfo
 from astro_client import HourlyAstroData, fetch_7timer_astro, fetch_constellations
@@ -233,7 +234,12 @@ def main() -> None:
     try:
         send_messages(cfg.LINE_CHANNEL_ACCESS_TOKEN, cfg.LINE_NOTIFY_TARGETS, message)
     except RuntimeError as e:
-        print(f"⚠️ LINE送信失敗（月間上限超過の可能性）: {e}", file=sys.stderr)
+        print(f"⚠️ LINE送信失敗: {e}", file=sys.stderr)
+        if cfg.DISCORD_WEBHOOK_URL:
+            if apod_image_url:
+                discord_client.send_embed_with_image(cfg.DISCORD_WEBHOOK_URL, message, apod_image_url)
+            else:
+                discord_client.send_message(cfg.DISCORD_WEBHOOK_URL, message)
         return
 
     # APOD 画像のみ送信（タイトルは上の予報メッセージに統合済み）

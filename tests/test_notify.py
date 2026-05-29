@@ -248,6 +248,136 @@ def test_format_message_pm25_reduces_score():
     assert overall_with_pm25.count("★") < overall_no_pm25.count("★")
 
 
+@patch("notify.discord_client")
+@patch("notify.send_image_message")
+@patch("notify.translate_apod_explanation")
+@patch("notify.fetch_apod")
+@patch("notify.fetch_night_weather_penalties")
+@patch("notify.fetch_astronomical_twilight")
+@patch("notify.send_messages")
+@patch("notify.fetch_constellations")
+@patch("notify.fetch_7timer_astro")
+@patch("notify.get_astro_data")
+@patch("notify.fetch_sky_conditions")
+@patch("notify.fetch_visible_comets")
+@patch("notify.fetch_pm25")
+@patch("notify.fetch_aod")
+@patch("notify.config")
+def test_main_line_failure_falls_back_to_discord(
+    mock_config, mock_fetch_aod, mock_fetch_pm25, mock_fetch_comets,
+    mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
+    mock_twilight, mock_penalties, mock_apod, mock_summarize, mock_send_image,
+    mock_discord,
+):
+    cfg = SimpleNamespace(**vars(FAKE_CFG))
+    cfg.DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/123/abc"
+    mock_config.load.return_value = cfg
+    mock_fetch.return_value = SAMPLE_CONDITIONS
+    mock_astro.return_value = (5.0, "21:00", SAMPLE_PLANETS, [])
+    mock_7timer.return_value = SAMPLE_ASTRO
+    mock_const.return_value = []
+    mock_twilight.return_value = None
+    mock_penalties.return_value = None
+    mock_apod.return_value = None
+    mock_fetch_aod.return_value = None
+    mock_fetch_pm25.return_value = None
+    mock_fetch_comets.return_value = []
+    mock_send.side_effect = RuntimeError("LINE send failed for all targets: uid")
+
+    main()
+
+    mock_discord.send_message.assert_called_once()
+    url, text = mock_discord.send_message.call_args[0]
+    assert url == "https://discord.com/api/webhooks/123/abc"
+    assert "今夜の星空予報" in text
+
+
+@patch("notify.discord_client")
+@patch("notify.send_image_message")
+@patch("notify.translate_apod_explanation")
+@patch("notify.fetch_apod")
+@patch("notify.fetch_night_weather_penalties")
+@patch("notify.fetch_astronomical_twilight")
+@patch("notify.send_messages")
+@patch("notify.fetch_constellations")
+@patch("notify.fetch_7timer_astro")
+@patch("notify.get_astro_data")
+@patch("notify.fetch_sky_conditions")
+@patch("notify.fetch_visible_comets")
+@patch("notify.fetch_pm25")
+@patch("notify.fetch_aod")
+@patch("notify.config")
+def test_main_line_failure_with_apod_uses_embed(
+    mock_config, mock_fetch_aod, mock_fetch_pm25, mock_fetch_comets,
+    mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
+    mock_twilight, mock_penalties, mock_apod, mock_summarize, mock_send_image,
+    mock_discord,
+):
+    cfg = SimpleNamespace(**vars(FAKE_CFG))
+    cfg.DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/123/abc"
+    mock_config.load.return_value = cfg
+    mock_fetch.return_value = SAMPLE_CONDITIONS
+    mock_astro.return_value = (5.0, "21:00", SAMPLE_PLANETS, [])
+    mock_7timer.return_value = SAMPLE_ASTRO
+    mock_const.return_value = []
+    mock_twilight.return_value = None
+    mock_penalties.return_value = None
+    mock_apod.return_value = ("https://example.com/img.jpg", "Galaxy", "description")
+    mock_summarize.return_value = "銀河"
+    mock_fetch_aod.return_value = None
+    mock_fetch_pm25.return_value = None
+    mock_fetch_comets.return_value = []
+    mock_send.side_effect = RuntimeError("LINE send failed for all targets: uid")
+
+    main()
+
+    mock_discord.send_embed_with_image.assert_called_once()
+    url, text, image_url = mock_discord.send_embed_with_image.call_args[0]
+    assert url == "https://discord.com/api/webhooks/123/abc"
+    assert "今夜の星空予報" in text
+    assert image_url == "https://example.com/img.jpg"
+
+
+@patch("notify.discord_client")
+@patch("notify.send_image_message")
+@patch("notify.translate_apod_explanation")
+@patch("notify.fetch_apod")
+@patch("notify.fetch_night_weather_penalties")
+@patch("notify.fetch_astronomical_twilight")
+@patch("notify.send_messages")
+@patch("notify.fetch_constellations")
+@patch("notify.fetch_7timer_astro")
+@patch("notify.get_astro_data")
+@patch("notify.fetch_sky_conditions")
+@patch("notify.fetch_visible_comets")
+@patch("notify.fetch_pm25")
+@patch("notify.fetch_aod")
+@patch("notify.config")
+def test_main_line_failure_no_discord_url_no_fallback(
+    mock_config, mock_fetch_aod, mock_fetch_pm25, mock_fetch_comets,
+    mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
+    mock_twilight, mock_penalties, mock_apod, mock_summarize, mock_send_image,
+    mock_discord,
+):
+    mock_config.load.return_value = FAKE_CFG  # DISCORD_WEBHOOK_URL=""
+    mock_fetch.return_value = SAMPLE_CONDITIONS
+    mock_astro.return_value = (5.0, "21:00", SAMPLE_PLANETS, [])
+    mock_7timer.return_value = SAMPLE_ASTRO
+    mock_const.return_value = []
+    mock_twilight.return_value = None
+    mock_penalties.return_value = None
+    mock_apod.return_value = None
+    mock_fetch_aod.return_value = None
+    mock_fetch_pm25.return_value = None
+    mock_fetch_comets.return_value = []
+    mock_send.side_effect = RuntimeError("LINE send failed for all targets: uid")
+
+    main()
+
+    mock_discord.send_message.assert_not_called()
+    mock_discord.send_embed_with_image.assert_not_called()
+
+
 # --- main() ---
 
 @patch("notify.send_image_message")
