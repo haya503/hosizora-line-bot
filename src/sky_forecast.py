@@ -54,6 +54,8 @@ def fetch_sky_conditions(
                 if t.startswith(str(today_jst))
                 and any(t.endswith(f"T{h:02d}:00") for h in range(18, 24))
             ]
+            if not evening_idx:
+                raise ValueError(f"夕方時間帯(18-23時)のデータが見つかりません: today={today_jst}")
             avg_humidity = round(
                 sum(data["relative_humidity_2m"][i] for i in evening_idx) / len(evening_idx)
             )
@@ -72,6 +74,6 @@ def fetch_sky_conditions(
                     ))
 
             return SkyConditions(humidity=avg_humidity, wind_speed=avg_wind, hourly=hourly)
-        except requests.RequestException as e:
+        except (requests.RequestException, ValueError, KeyError, IndexError) as e:
             last_exc = e
     raise last_exc  # type: ignore[misc]

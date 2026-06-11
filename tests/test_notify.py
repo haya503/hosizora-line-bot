@@ -1,6 +1,7 @@
 from datetime import date
 from types import SimpleNamespace
 from unittest.mock import patch
+import pytest
 from sky_forecast import SkyConditions, HourlySkyReading
 from astro_events import PlanetInfo
 from astro_client import HourlyAstroData
@@ -372,7 +373,9 @@ def test_main_line_failure_no_discord_url_no_fallback(
     mock_fetch_comets.return_value = []
     mock_send.side_effect = RuntimeError("LINE send failed for all targets: uid")
 
-    main()
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+    assert exc_info.value.code == 1
 
     mock_discord.send_message.assert_not_called()
     mock_discord.send_embed_with_image.assert_not_called()
@@ -423,7 +426,9 @@ def test_main_weather_error_sends_error_notification(mock_config, mock_fetch, mo
     mock_config.load.return_value = FAKE_CFG
     mock_fetch.side_effect = Exception("connection timeout")
 
-    main()
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+    assert exc_info.value.code == 1
 
     mock_send.assert_called_once()
     text = mock_send.call_args[0][2]
