@@ -164,51 +164,68 @@ def format_message(
 def main() -> None:
     cfg = config.load()
     now_utc = datetime.now(timezone.utc)
-    sky_error = None
+    print(f"[notify] 開始: {now_utc.strftime('%Y-%m-%d %H:%M:%S UTC')}")
 
+    sky_error = None
     try:
         conditions = fetch_sky_conditions(cfg.LOCATION_LAT, cfg.LOCATION_LON)
+        print(f"[notify] 気象データ取得完了 (雲量: {[r.cloud_cover for r in conditions.hourly]}%)")
     except Exception as e:
         sky_error = e
 
     if sky_error is not None:
-        send_messages(cfg.LINE_CHANNEL_ACCESS_TOKEN, cfg.LINE_NOTIFY_TARGETS, f"⚠️ 気象データ取得失敗: {sky_error}")
-        return
+        print(f"[notify] ⚠️ 気象データ取得失敗: {sky_error}", file=sys.stderr)
+        try:
+            send_messages(cfg.LINE_CHANNEL_ACCESS_TOKEN, cfg.LINE_NOTIFY_TARGETS, f"⚠️ 気象データ取得失敗: {sky_error}")
+        except RuntimeError as line_err:
+            print(f"[notify] ⚠️ エラー通知の LINE送信も失敗: {line_err}", file=sys.stderr)
+        sys.exit(1)
 
     moon_age, moonrise, planets, meteor_showers = get_astro_data(
         cfg.LOCATION_LAT, cfg.LOCATION_LON, now_utc
     )
+    print(f"[notify] 天文データ取得完了 (月齢: {moon_age:.1f})")
 
     try:
         astro_data = fetch_7timer_astro(cfg.LOCATION_LAT, cfg.LOCATION_LON)
-    except Exception:
+        print(f"[notify] 7timer シーイングデータ取得完了 ({len(astro_data)}件)")
+    except Exception as e:
+        print(f"[notify] 7timer 取得失敗（スキップ）: {e}", file=sys.stderr)
         astro_data = {}
 
     date_jst = datetime.now(JST).date().isoformat()
     try:
         constellations = fetch_constellations(cfg.LOCATION_LAT, cfg.LOCATION_LON, date_jst, cfg.HOSHIMIRU_API_TOKEN)
-    except Exception:
+        print(f"[notify] 星座データ取得完了 ({len(constellations)}件)")
+    except Exception as e:
+        print(f"[notify] 星座データ取得失敗（スキップ）: {e}", file=sys.stderr)
         constellations = []
 
-    # USNO: 天文薄明時刻（失敗してもスキップ）
     twilight_time = fetch_astronomical_twilight(cfg.LOCATION_LAT, cfg.LOCATION_LON, date_jst)
+    print(f"[notify] 天文薄明: {twilight_time or '取得失敗'}")
 
-    # JMA: 夜間天気補正（失敗してもスキップ）
     weather_penalties = fetch_night_weather_penalties(cfg.JMA_AREA_CODE)
+    print(f"[notify] JMA天気補正: {'取得完了' if weather_penalties is not None else '取得失敗（スキップ）'}")
 
     try:
         aod = fetch_aod(cfg.LOCATION_LAT, cfg.LOCATION_LON)
-    except Exception:
+        print(f"[notify] AOD: {aod:.3f}" if aod is not None else "[notify] AOD: 取得失敗（スキップ）")
+    except Exception as e:
+        print(f"[notify] AOD取得失敗（スキップ）: {e}", file=sys.stderr)
         aod = None
 
     try:
         pm25 = fetch_pm25(cfg.LOCATION_LAT, cfg.LOCATION_LON)
-    except Exception:
+        print(f"[notify] PM2.5: {pm25:.1f}μg/m³" if pm25 is not None else "[notify] PM2.5: 取得失敗（スキップ）")
+    except Exception as e:
+        print(f"[notify] PM2.5取得失敗（スキップ）: {e}", file=sys.stderr)
         pm25 = None
 
     try:
         comets = fetch_visible_comets(cfg.LOCATION_LAT, cfg.LOCATION_LON, date_jst)
-    except Exception:
+        print(f"[notify] 彗星データ: {len(comets)}件")
+    except Exception as e:
+        print(f"[notify] 彗星データ取得失敗（スキップ）: {e}", file=sys.stderr)
         comets = []
 
     # APOD タイトルを取得して予報メッセージに統合（メッセージ数削減）
@@ -218,8 +235,10 @@ def main() -> None:
         image_url, title, _ = apod_result
         translated_title = translate_apod_explanation(title, cfg.DEEPL_API_KEY) or title
         apod_image_url = image_url
+        print(f"[notify] APOD取得完了: {title}")
     else:
         translated_title = None
+        print("[notify] APOD取得失敗（スキップ）", file=sys.stderr)
 
     message = format_message(
         conditions, astro_data, moon_age, moonrise, planets, meteor_showers, constellations,
@@ -231,26 +250,38 @@ def main() -> None:
         pm25=pm25,
         apod_title=translated_title,
     )
+    print(f"[notify] メッセージ生成完了 ({len(message)}文字)")
+
+    notified = False
     try:
         send_messages(cfg.LINE_CHANNEL_ACCESS_TOKEN, cfg.LINE_NOTIFY_TARGETS, message)
+        print(f"[notify] LINE送信完了 ({len(cfg.LINE_NOTIFY_TARGETS)}件)")
+        notified = True
     except RuntimeError as e:
-        print(f"⚠️ LINE送信失敗: {e}", file=sys.stderr)
+        print(f"[notify] ⚠️ LINE送信失敗（全ターゲット）: {e}", file=sys.stderr)
         if cfg.DISCORD_WEBHOOK_URL:
             try:
                 if apod_image_url:
                     discord_client.send_embed_with_image(cfg.DISCORD_WEBHOOK_URL, message, apod_image_url)
                 else:
                     discord_client.send_message(cfg.DISCORD_WEBHOOK_URL, message)
+                print("[notify] Discord フォールバック送信完了")
+                notified = True
             except Exception as discord_err:
-                print(f"⚠️ Discord送信失敗: {discord_err}", file=sys.stderr)
-        return
+                print(f"[notify] ⚠️ Discord送信失敗: {discord_err}", file=sys.stderr)
+        else:
+            print("[notify] DISCORD_WEBHOOK_URL が未設定のためフォールバック不可", file=sys.stderr)
+
+    if not notified:
+        sys.exit(1)
 
     # APOD 画像のみ送信（タイトルは上の予報メッセージに統合済み）
     if apod_image_url:
         try:
             send_image_message(cfg.LINE_CHANNEL_ACCESS_TOKEN, cfg.LINE_NOTIFY_TARGETS, apod_image_url)
-        except Exception:
-            pass
+            print("[notify] APOD画像送信完了")
+        except Exception as e:
+            print(f"[notify] APOD画像送信失敗（無視）: {e}", file=sys.stderr)
 
 
 if __name__ == "__main__":
