@@ -14,7 +14,7 @@ import requests as _requests
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 
 from astro_events import get_astro_data
-from astro_client import fetch_constellations
+from astro_client import HourlyAstroData, fetch_7timer_astro, fetch_constellations
 from cams_client import fetch_aod
 from horizons_client import CometInfo, fetch_visible_comets
 from usno_client import fetch_astronomical_twilight
@@ -86,6 +86,7 @@ def _format_night_forecast(
     aod: float | None = None,
     pm25: float | None = None,
     twilight: str | None = None,
+    astro_data: dict[int, HourlyAstroData] | None = None,
 ) -> str:
     emoji, phase_name = moon_phase(moon_age)
     moon_str = f"{phase_name}（月齢{moon_age:.0f}）"
@@ -94,7 +95,11 @@ def _format_night_forecast(
 
     hourly_lines, scores = [], []
     for reading in conditions.hourly:
-        score = calculate_hourly_score(reading.cloud_cover, reading.visibility, 1, 1)
+        ad = (astro_data or {}).get(reading.hour, HourlyAstroData(1, 1))
+        score = calculate_hourly_score(
+            reading.cloud_cover, reading.visibility, ad.seeing, ad.transparency,
+            aod=aod, pm25=pm25,
+        )
         scores.append(score)
         hourly_lines.append(f"{reading.hour}時 {_HOURLY_EMOJI[score]} {format_stars(score)}")
 
@@ -144,6 +149,7 @@ def _format_hour_forecast(
     location_name: str,
     aod: float | None = None,
     pm25: float | None = None,
+    astro_data: dict[int, HourlyAstroData] | None = None,
 ) -> str:
     reading = next((r for r in conditions.hourly if r.hour == hour), None)
     if reading is None:
@@ -152,7 +158,11 @@ def _format_hour_forecast(
             "⚠️ 該当時間のデータがありません（対応時間: 21〜24時）"
         )
 
-    score = calculate_hourly_score(reading.cloud_cover, reading.visibility, 1, 1)
+    ad = (astro_data or {}).get(hour, HourlyAstroData(1, 1))
+    score = calculate_hourly_score(
+        reading.cloud_cover, reading.visibility, ad.seeing, ad.transparency,
+        aod=aod, pm25=pm25,
+    )
     emoji, phase_name = moon_phase(moon_age)
 
     event_lines = [
@@ -217,6 +227,11 @@ def _handle_mention(reply_token: str, text: str) -> None:
     _log.info("aod %.1fs", time.monotonic() - t0)
     pm25 = fetch_pm25(lat, lon)
     _log.info("pm25 %.1fs", time.monotonic() - t0)
+    try:
+        astro_data = fetch_7timer_astro(lat, lon)
+    except Exception:
+        astro_data = {}
+    _log.info("astro_7timer %.1fs", time.monotonic() - t0)
 
     date_label = f"{req.target_date.month}月{req.target_date.day}日"
 
@@ -236,12 +251,12 @@ def _handle_mention(reply_token: str, text: str) -> None:
         _log.info("twilight %.1fs", time.monotonic() - t0)
         msg = _format_night_forecast(
             conditions, moon_age, moonrise, planets, constellations, date_label, req.location,
-            comets=comets, aod=aod, pm25=pm25, twilight=twilight,
+            comets=comets, aod=aod, pm25=pm25, twilight=twilight, astro_data=astro_data,
         )
     else:
         msg = _format_hour_forecast(
             conditions, req.hour, moon_age, planets, date_label, req.location,
-            aod=aod, pm25=pm25,
+            aod=aod, pm25=pm25, astro_data=astro_data,
         )
 
     try:
