@@ -37,3 +37,16 @@ jobs:
           DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           SKYFIELD_DATA_PATH: /tmp/skyfield-data
+
+  # リポジトリが60日間無活動だと定期実行が自動停止されるため、
+  # 毎回 enable API を叩いて無効化タイマーをリセットする（コミット不要）
+  keepalive:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: ワークフローの自動無効化を防止
+        run: gh api --method PUT "repos/${{ github.repository }}/actions/workflows/notify.yml/enable"
+        env:
+          GH_TOKEN: ${{ github.token }}
