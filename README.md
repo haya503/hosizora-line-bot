@@ -54,7 +54,7 @@ cp .env.example .env
 | `LINE_NOTIFY_TARGETS` | ✓ | 通知先のID（カンマ区切り、例: `user:Uxxxx,group:Cxxxx`） |
 | `LOCATION_LAT` | ✓ | 観測地の緯度 |
 | `LOCATION_LON` | ✓ | 観測地の経度 |
-| `JMA_AREA_CODE` | ✓ | 気象庁の地域コード（例: 熊本 `430010`、東京 `130010`） |
+| `JMA_AREA_CODE` | ✓ | 気象庁の府県予報区コード（例: 熊本 `430000`、東京 `130000`） |
 | `HOSHIMIRU_API_TOKEN` | — | 星をみるひとAPIトークン（未設定時は星座情報をスキップ） |
 | `DEEPL_API_KEY` | — | DeepL Free APIキー（未設定時はAPODタイトルを英語のまま送信） |
 
@@ -80,7 +80,7 @@ python src/notify.py
 | `LINE_NOTIFY_TARGETS` | 通知先ID |
 | `LOCATION_LAT` | 緯度 |
 | `LOCATION_LON` | 経度 |
-| `JMA_AREA_CODE` | 気象庁地域コード |
+| `JMA_AREA_CODE` | 気象庁の府県予報区コード（熊本は `430000`） |
 | `HOSHIMIRU_API_TOKEN` | 星をみるひとAPIトークン |
 | `DEEPL_API_KEY` | DeepL Free APIキー（APODタイトル日本語翻訳用） |
 
