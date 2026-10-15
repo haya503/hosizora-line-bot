@@ -10,8 +10,7 @@ from usno_client import fetch_astronomical_twilight
 from jma_client import fetch_night_weather_penalties
 from apod_client import fetch_apod, translate_apod_explanation
 from line_client import send_messages, send_image_message
-from cams_client import fetch_aod
-from openaq_client import fetch_pm25
+from cams_client import fetch_aod, fetch_pm25
 from horizons_client import fetch_visible_comets, CometInfo
 
 JST = timezone(timedelta(hours=9))

@@ -18,7 +18,7 @@
 
 | API | 用途 |
 |-----|------|
-| [Open-Meteo](https://open-meteo.com/) | 雲量・視程・湿度・風速 |
+| [Open-Meteo](https://open-meteo.com/) | 雲量・視程・湿度・風速・エアロゾル（AOD）・PM2.5 |
 | [7timer ASTRO](http://www.7timer.info/) | シーイング・透明度 |
 | [星をみるひとAPI](https://hoshimiru.jp/) | 見える星座 |
 | [気象庁 JSON](https://www.jma.go.jp/bosai/forecast/) | 夜間天気コード→スコア補正 |

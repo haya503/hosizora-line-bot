@@ -187,7 +187,7 @@ def test_format_night_forecast_shows_twilight():
     assert "天文薄明" in msg
 
 
-# --- _handle_mention calls CAMS/OpenAQ/Horizons ---
+# --- _handle_mention calls CAMS/Horizons ---
 
 from webhook import _handle_mention
 
