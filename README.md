@@ -56,7 +56,6 @@ cp .env.example .env
 | `LOCATION_LON` | ✓ | 観測地の経度 |
 | `JMA_AREA_CODE` | ✓ | 気象庁の地域コード（例: 熊本 `430010`、東京 `130010`） |
 | `HOSHIMIRU_API_TOKEN` | — | 星をみるひとAPIトークン（未設定時は星座情報をスキップ） |
-| `NASA_APOD_API_KEY` | — | NASA APIキー（未設定時は `DEMO_KEY` を使用） |
 | `DEEPL_API_KEY` | — | DeepL Free APIキー（未設定時はAPODタイトルを英語のまま送信） |
 
 ### 通知先IDの確認方法
@@ -83,7 +82,6 @@ python src/notify.py
 | `LOCATION_LON` | 経度 |
 | `JMA_AREA_CODE` | 気象庁地域コード |
 | `HOSHIMIRU_API_TOKEN` | 星をみるひとAPIトークン |
-| `NASA_APOD_API_KEY` | NASA APIキー |
 | `DEEPL_API_KEY` | DeepL Free APIキー（APODタイトル日本語翻訳用） |
 
 ## テスト

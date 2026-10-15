@@ -24,7 +24,6 @@ FAKE_CFG = SimpleNamespace(
     LOCATION_LON=130.7081,
     HOSHIMIRU_API_TOKEN="test_token",
     JMA_AREA_CODE="130000",
-    NASA_APOD_API_KEY="DEMO_KEY",
     DEEPL_API_KEY="",
     DISCORD_WEBHOOK_URL="",
 )

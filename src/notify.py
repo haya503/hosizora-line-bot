@@ -212,7 +212,7 @@ def main() -> None:
         comets = []
 
     # APOD タイトルを取得して予報メッセージに統合（メッセージ数削減）
-    apod_result = fetch_apod(cfg.NASA_APOD_API_KEY)
+    apod_result = fetch_apod()
     apod_image_url: Optional[str] = None
     if apod_result:
         image_url, title, _ = apod_result

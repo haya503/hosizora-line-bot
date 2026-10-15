@@ -37,7 +37,6 @@ def load() -> SimpleNamespace:
         LOCATION_LAT=FIXED_LOCATION_LAT,
         LOCATION_LON=FIXED_LOCATION_LON,
         HOSHIMIRU_API_TOKEN=os.environ.get("HOSHIMIRU_API_TOKEN", ""),
-        NASA_APOD_API_KEY=os.environ.get("NASA_APOD_API_KEY", "DEMO_KEY"),
         JMA_AREA_CODE=os.environ["JMA_AREA_CODE"],
         DEEPL_API_KEY=os.environ.get("DEEPL_API_KEY", ""),
         DISCORD_WEBHOOK_URL=os.environ.get("DISCORD_WEBHOOK_URL", ""),
