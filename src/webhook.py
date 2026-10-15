@@ -15,13 +15,12 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 
 from astro_events import get_astro_data
 from astro_client import HourlyAstroData, fetch_7timer_astro, fetch_constellations
-from cams_client import fetch_aod
+from cams_client import fetch_aod, fetch_pm25
 from horizons_client import CometInfo, fetch_visible_comets
 from usno_client import fetch_astronomical_twilight
 from line_client import reply_message
 from message_parser import ERROR_MESSAGE, ParseError, parse_mention_text
 from notify import calculate_hourly_score, format_stars, moon_phase
-from openaq_client import fetch_pm25
 from sky_forecast import SkyConditions, fetch_sky_conditions
 
 JST = timezone(timedelta(hours=9))
