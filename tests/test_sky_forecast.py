@@ -99,3 +99,24 @@ def test_fetch_raises_after_two_failures():
     with patch("sky_forecast.requests.get", return_value=fail):
         with pytest.raises(requests.RequestException):
             fetch_sky_conditions(35.0, 135.0, TODAY)
+
+
+def test_fetch_raises_on_empty_evening_data():
+    # 夕方(18-23時)のデータが存在しない場合、ValueError が発生して呼び出し元に伝わる
+    m = MagicMock()
+    tomorrow = date(2026, 5, 3)
+    # 今日の夕方時間帯を含まない（例: 翌日のデータのみ）
+    times = [f"{tomorrow}T{h:02d}:00" for h in range(24)]
+    m.json.return_value = {
+        "hourly": {
+            "time": times,
+            "cloud_cover": [10] * 24,
+            "visibility": [20000] * 24,
+            "relative_humidity_2m": [50] * 24,
+            "wind_speed_10m": [3.0] * 24,
+        }
+    }
+    m.raise_for_status.return_value = None
+    with patch("sky_forecast.requests.get", return_value=m):
+        with pytest.raises(ValueError, match="夕方時間帯"):
+            fetch_sky_conditions(35.0, 135.0, TODAY)
