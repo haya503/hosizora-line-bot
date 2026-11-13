@@ -430,6 +430,44 @@ def test_main_weather_error_sends_error_notification(mock_config, mock_fetch, mo
     assert "気象データ取得失敗" in text
 
 
+@patch("notify.discord_client")
+@patch("notify.send_messages")
+@patch("notify.fetch_sky_conditions")
+@patch("notify.config")
+def test_main_weather_error_notifies_discord_not_line(mock_config, mock_fetch, mock_send, mock_discord):
+    cfg = SimpleNamespace(**vars(FAKE_CFG))
+    cfg.DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/123/abc"
+    mock_config.load.return_value = cfg
+    mock_fetch.side_effect = Exception("read timed out")
+
+    main()
+
+    mock_send.assert_not_called()
+    mock_discord.send_message.assert_called_once()
+    url, text = mock_discord.send_message.call_args[0]
+    assert url == cfg.DISCORD_WEBHOOK_URL
+    assert "気象データ取得失敗" in text
+
+
+@patch("notify.discord_client")
+@patch("notify.send_messages")
+@patch("notify.fetch_sky_conditions")
+@patch("notify.config")
+def test_main_weather_error_falls_back_to_line_when_discord_fails(
+    mock_config, mock_fetch, mock_send, mock_discord
+):
+    cfg = SimpleNamespace(**vars(FAKE_CFG))
+    cfg.DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/123/abc"
+    mock_config.load.return_value = cfg
+    mock_fetch.side_effect = Exception("read timed out")
+    mock_discord.send_message.side_effect = Exception("discord down")
+
+    main()
+
+    mock_send.assert_called_once()
+    assert "気象データ取得失敗" in mock_send.call_args[0][2]
+
+
 @patch("notify.send_messages")
 @patch("notify.fetch_sky_conditions")
 @patch("notify.config")
