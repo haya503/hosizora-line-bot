@@ -1,6 +1,6 @@
 # stargazing-line-bot
 
-毎晩17:00に今夜の星空予報をLINEに送るBot。
+毎晩17:00頃に今夜の星空予報をLINEに送るBot。
 
 ## 機能
 
@@ -72,7 +72,9 @@ python src/notify.py
 
 ## GitHub Actions
 
-リポジトリの Secrets に以下を設定すると、毎日17:00 JSTに自動通知されます。
+リポジトリの Secrets に以下を設定すると、毎日17:00 JST以降に自動通知されます。
+
+GitHub Actions の定期実行は数時間遅れることがあるため、10:07〜19:07 JST に1時間おきに起動し、17:00 JST 以降に最初に起動したジョブだけが通知します（1日1回）。通知開始時刻は `.github/workflows/notify.yml` の `NOTIFY_START_HOUR_JST` で変更できます。
 
 | Secret名 | 説明 |
 |----------|------|
