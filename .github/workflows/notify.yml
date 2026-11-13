@@ -1,12 +1,69 @@
 name: 星空予報 LINE通知
 
+# GitHub Actions の定期実行は数時間遅れることがある（実績で 4〜9 時間）。
+# そのため早い時間から 1 時間おきに起動し、NOTIFY_START_HOUR_JST 時以降に
+# 最初に起動したジョブだけが通知する。通知済みかどうかは日付ごとのキャッシュで判定する。
 on:
   schedule:
-    - cron: '0 6 * * *'  # 17:00 JST目標 (UTC+9、遅延2h想定)
-  workflow_dispatch:
+    - cron: '7 1-10 * * *'  # 10:07〜19:07 JST に 1 時間おき (UTC+9)
+  workflow_dispatch:  # 手動実行は時刻・通知済みに関係なく必ず送信する
+
+# 同時に起動したジョブが二重に通知しないよう直列化する
+concurrency:
+  group: notify
+  cancel-in-progress: false
+
+env:
+  NOTIFY_START_HOUR_JST: 17  # この時刻 (JST) より前に起動したジョブは通知しない
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      today: ${{ steps.time.outputs.today }}
+      should_notify: ${{ steps.decide.outputs.should_notify }}
+    steps:
+      - name: 現在時刻 (JST) を確認
+        id: time
+        run: |
+          today=$(TZ=Asia/Tokyo date +%F)
+          hour=$(TZ=Asia/Tokyo date +%-H)
+          echo "現在 ${today} ${hour}時 (JST)"
+          echo "today=${today}" >> "$GITHUB_OUTPUT"
+          if [ "$hour" -ge "$NOTIFY_START_HOUR_JST" ]; then
+            echo "in_window=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 本日の通知済みマーカーを確認
+        id: marker
+        if: github.event_name == 'schedule' && steps.time.outputs.in_window == 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: .notified
+          key: notified-${{ steps.time.outputs.today }}
+          lookup-only: true
+
+      - name: 通知するか判定
+        id: decide
+        env:
+          EVENT: ${{ github.event_name }}
+          IN_WINDOW: ${{ steps.time.outputs.in_window }}
+          ALREADY_NOTIFIED: ${{ steps.marker.outputs.cache-hit }}
+        run: |
+          if [ "$EVENT" != "schedule" ]; then
+            echo "手動実行のため送信します"
+            echo "should_notify=true" >> "$GITHUB_OUTPUT"
+          elif [ "$IN_WINDOW" != "true" ]; then
+            echo "${NOTIFY_START_HOUR_JST}:00 JST より前のためスキップします"
+          elif [ "$ALREADY_NOTIFIED" = "true" ]; then
+            echo "本日は通知済みのためスキップします"
+          else
+            echo "should_notify=true" >> "$GITHUB_OUTPUT"
+          fi
+
   notify:
+    needs: check
+    if: needs.check.outputs.should_notify == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,3 +93,14 @@ jobs:
           DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           SKYFIELD_DATA_PATH: /tmp/skyfield-data
+
+      - name: 通知済みマーカーを作成
+        if: github.event_name == 'schedule'
+        run: echo "${{ needs.check.outputs.today }}" > .notified
+
+      - name: 通知済みマーカーを保存
+        if: github.event_name == 'schedule'
+        uses: actions/cache/save@v4
+        with:
+          path: .notified
+          key: notified-${{ needs.check.outputs.today }}
