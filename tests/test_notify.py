@@ -1,3 +1,4 @@
+import pytest
 from datetime import date
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -427,6 +428,23 @@ def test_main_weather_error_sends_error_notification(mock_config, mock_fetch, mo
     mock_send.assert_called_once()
     text = mock_send.call_args[0][2]
     assert "気象データ取得失敗" in text
+
+
+@patch("notify.send_messages")
+@patch("notify.fetch_sky_conditions")
+@patch("notify.config")
+def test_main_weather_error_retry_later_exits_without_notification(
+    mock_config, mock_fetch, mock_send, monkeypatch
+):
+    monkeypatch.setenv("NOTIFY_RETRY_LATER", "1")
+    mock_config.load.return_value = FAKE_CFG
+    mock_fetch.side_effect = Exception("read timed out")
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 1
+    mock_send.assert_not_called()
 
 
 @patch("notify.send_image_message")

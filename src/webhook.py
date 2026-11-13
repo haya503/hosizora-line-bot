@@ -209,7 +209,7 @@ def _handle_mention(reply_token: str, text: str) -> None:
         return
 
     try:
-        conditions = fetch_sky_conditions(lat, lon, req.target_date)
+        conditions = fetch_sky_conditions(lat, lon, req.target_date, attempts=2, timeout=10)
         _log.info("sky_forecast %.1fs", time.monotonic() - t0)
     except Exception as e:
         reply_message(_TOKEN, reply_token, f"⚠️ 気象データ取得失敗: {e}")

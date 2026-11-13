@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+import sys
+import time
 from datetime import date, datetime, timedelta, timezone
 import requests
 
@@ -19,8 +21,18 @@ class SkyConditions:
     hourly: list[HourlySkyReading]  # 21〜24時JST
 
 
+# Open-Meteo は混雑時に応答が 10 秒を超えることがあるため、読み取りタイムアウトを長めにし、
+# 失敗したら間をあけて再試行する
+_TIMEOUT = (5, 30)  # (接続, 読み取り) 秒
+_RETRY_WAITS = (5, 15)  # 2 回目・3 回目の前に待つ秒数
+
+
 def fetch_sky_conditions(
-    lat: float, lon: float, today_jst: date | None = None
+    lat: float,
+    lon: float,
+    today_jst: date | None = None,
+    attempts: int = 3,
+    timeout: float | tuple[float, float] = _TIMEOUT,
 ) -> SkyConditions:
     if today_jst is None:
         today_jst = datetime.now(JST).date()
@@ -42,9 +54,11 @@ def fetch_sky_conditions(
         "forecast_days": 2,
     }
     last_exc: Exception | None = None
-    for _ in range(2):
+    for attempt in range(attempts):
+        if attempt > 0:
+            time.sleep(_RETRY_WAITS[min(attempt - 1, len(_RETRY_WAITS) - 1)])
         try:
-            resp = requests.get(url, params=params, timeout=10)
+            resp = requests.get(url, params=params, timeout=timeout)
             resp.raise_for_status()
             data = resp.json()["hourly"]
             times = data["time"]
@@ -73,5 +87,6 @@ def fetch_sky_conditions(
 
             return SkyConditions(humidity=avg_humidity, wind_speed=avg_wind, hourly=hourly)
         except requests.RequestException as e:
+            print(f"Open-Meteo 取得失敗 ({attempt + 1}/{attempts} 回目): {e}", file=sys.stderr)
             last_exc = e
     raise last_exc  # type: ignore[misc]
