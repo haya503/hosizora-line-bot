@@ -84,18 +84,52 @@ def test_fetch_humidity_is_evening_average():
     assert result.humidity == 60
 
 
-def test_fetch_retries_on_error():
-    ok = _make_mock_response()
+def _failing_response():
     fail = MagicMock()
     fail.raise_for_status.side_effect = requests.RequestException("timeout")
-    with patch("sky_forecast.requests.get", side_effect=[fail, ok]):
+    return fail
+
+
+@patch("sky_forecast.time.sleep")
+def test_fetch_retries_on_error(mock_sleep):
+    ok = _make_mock_response()
+    with patch("sky_forecast.requests.get", side_effect=[_failing_response(), ok]):
         result = fetch_sky_conditions(35.0, 135.0, TODAY)
     assert isinstance(result, SkyConditions)
+    mock_sleep.assert_called_once_with(5)
 
 
-def test_fetch_raises_after_two_failures():
-    fail = MagicMock()
-    fail.raise_for_status.side_effect = requests.RequestException("timeout")
-    with patch("sky_forecast.requests.get", return_value=fail):
+@patch("sky_forecast.time.sleep")
+def test_fetch_succeeds_on_third_attempt(mock_sleep):
+    ok = _make_mock_response()
+    with patch(
+        "sky_forecast.requests.get",
+        side_effect=[_failing_response(), _failing_response(), ok],
+    ):
+        result = fetch_sky_conditions(35.0, 135.0, TODAY)
+    assert isinstance(result, SkyConditions)
+    assert [c.args[0] for c in mock_sleep.call_args_list] == [5, 15]
+
+
+@patch("sky_forecast.time.sleep")
+def test_fetch_raises_after_all_attempts_fail(mock_sleep):
+    with patch("sky_forecast.requests.get", return_value=_failing_response()) as mock_get:
         with pytest.raises(requests.RequestException):
             fetch_sky_conditions(35.0, 135.0, TODAY)
+    assert mock_get.call_count == 3
+
+
+@patch("sky_forecast.time.sleep")
+def test_fetch_respects_attempts_and_timeout(mock_sleep):
+    with patch("sky_forecast.requests.get", return_value=_failing_response()) as mock_get:
+        with pytest.raises(requests.RequestException):
+            fetch_sky_conditions(35.0, 135.0, TODAY, attempts=2, timeout=10)
+    assert mock_get.call_count == 2
+    assert all(c.kwargs["timeout"] == 10 for c in mock_get.call_args_list)
+
+
+def test_fetch_uses_long_read_timeout_by_default():
+    with patch("sky_forecast.requests.get", return_value=_make_mock_response()) as mock_get:
+        fetch_sky_conditions(35.0, 135.0, TODAY)
+    connect, read = mock_get.call_args.kwargs["timeout"]
+    assert read >= 30

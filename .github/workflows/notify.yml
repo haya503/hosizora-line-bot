@@ -15,12 +15,16 @@ concurrency:
 
 env:
   NOTIFY_START_HOUR_JST: 17  # この時刻 (JST) より前に起動したジョブは通知しない
+  # この時刻 (JST) より前に起動した定期実行は、気象データの取得に失敗しても失敗を通知せず
+  # ジョブを失敗させ、次の起動で再試行する（最後の cron 19:07 JST 以降は失敗を通知する）
+  NOTIFY_RETRY_UNTIL_HOUR_JST: 19
 
 jobs:
   check:
     runs-on: ubuntu-latest
     outputs:
       today: ${{ steps.time.outputs.today }}
+      retry_later: ${{ steps.time.outputs.retry_later }}
       should_notify: ${{ steps.decide.outputs.should_notify }}
     steps:
       - name: 現在時刻 (JST) を確認
@@ -32,6 +36,9 @@ jobs:
           echo "today=${today}" >> "$GITHUB_OUTPUT"
           if [ "$hour" -ge "$NOTIFY_START_HOUR_JST" ]; then
             echo "in_window=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "$hour" -lt "$NOTIFY_RETRY_UNTIL_HOUR_JST" ]; then
+            echo "retry_later=1" >> "$GITHUB_OUTPUT"
           fi
 
       - name: 本日の通知済みマーカーを確認
@@ -93,6 +100,7 @@ jobs:
           DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           SKYFIELD_DATA_PATH: /tmp/skyfield-data
+          NOTIFY_RETRY_LATER: ${{ needs.check.outputs.retry_later }}
 
       - name: 通知済みマーカーを作成
         if: github.event_name == 'schedule'

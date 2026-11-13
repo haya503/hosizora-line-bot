@@ -1,3 +1,4 @@
+import os
 import sys
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -171,6 +172,11 @@ def main() -> None:
         sky_error = e
 
     if sky_error is not None:
+        print(f"⚠️ 気象データ取得失敗: {sky_error}", file=sys.stderr)
+        # 定期実行で後の起動に再試行の機会がある場合は、失敗を通知せず異常終了する。
+        # （ワークフローは通知済みマーカーを保存しないので、次の起動でやり直される）
+        if os.environ.get("NOTIFY_RETRY_LATER") == "1":
+            sys.exit(1)
         send_messages(cfg.LINE_CHANNEL_ACCESS_TOKEN, cfg.LINE_NOTIFY_TARGETS, f"⚠️ 気象データ取得失敗: {sky_error}")
         return
 
