@@ -161,6 +161,18 @@ def format_message(
     return "\n".join(lines)
 
 
+def _notify_failure(cfg, text: str) -> None:
+    """失敗の通知は Discord に送る（LINE の通知先には送らない）。
+    Discord が未設定、または Discord への送信に失敗した場合は LINE に送る。"""
+    if cfg.DISCORD_WEBHOOK_URL:
+        try:
+            discord_client.send_message(cfg.DISCORD_WEBHOOK_URL, text)
+            return
+        except Exception as discord_err:
+            print(f"⚠️ Discord送信失敗: {discord_err}", file=sys.stderr)
+    send_messages(cfg.LINE_CHANNEL_ACCESS_TOKEN, cfg.LINE_NOTIFY_TARGETS, text)
+
+
 def main() -> None:
     cfg = config.load()
     now_utc = datetime.now(timezone.utc)
@@ -177,7 +189,7 @@ def main() -> None:
         # （ワークフローは通知済みマーカーを保存しないので、次の起動でやり直される）
         if os.environ.get("NOTIFY_RETRY_LATER") == "1":
             sys.exit(1)
-        send_messages(cfg.LINE_CHANNEL_ACCESS_TOKEN, cfg.LINE_NOTIFY_TARGETS, f"⚠️ 気象データ取得失敗: {sky_error}")
+        _notify_failure(cfg, f"⚠️ 気象データ取得失敗: {sky_error}")
         return
 
     moon_age, moonrise, planets, meteor_showers = get_astro_data(
