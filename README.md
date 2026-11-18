@@ -76,6 +76,8 @@ python src/notify.py
 
 GitHub Actions の定期実行は数時間遅れることがあるため、10:07〜19:07 JST に1時間おきに起動し、16:00 JST 以降に最初に起動したジョブだけが通知します（1日1回）。通知開始時刻は `.github/workflows/notify.yml` の `NOTIFY_START_HOUR_JST` で変更できます。
 
+ただし GitHub Actions の定期実行は起動回数が大幅に間引かれることがあるため、時刻どおりに通知するには Cloud Scheduler から起動します。設定手順は [docs/cloud-scheduler.md](docs/cloud-scheduler.md) を参照してください。
+
 | Secret名 | 説明 |
 |----------|------|
 | `LINE_CHANNEL_ACCESS_TOKEN` | LINEトークン |
