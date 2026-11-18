@@ -416,6 +416,71 @@ def test_main_happy_path(mock_config, mock_fetch_aod, mock_fetch_pm25, mock_fetc
     assert "今夜の星空予報" in text
 
 
+@patch("notify.discord_client")
+@patch("notify.send_image_message")
+@patch("notify.translate_apod_explanation")
+@patch("notify.fetch_apod")
+@patch("notify.fetch_night_weather_penalties")
+@patch("notify.fetch_astronomical_twilight")
+@patch("notify.send_messages")
+@patch("notify.fetch_constellations")
+@patch("notify.fetch_7timer_astro")
+@patch("notify.get_astro_data")
+@patch("notify.fetch_sky_conditions")
+@patch("notify.fetch_visible_comets")
+@patch("notify.fetch_pm25")
+@patch("notify.fetch_aod")
+@patch("notify.config")
+def test_main_dry_run_prints_without_sending(
+    mock_config, mock_fetch_aod, mock_fetch_pm25, mock_fetch_comets,
+    mock_fetch, mock_astro, mock_7timer, mock_const, mock_send,
+    mock_twilight, mock_penalties, mock_apod, mock_translate, mock_send_image, mock_discord,
+    monkeypatch, capsys,
+):
+    monkeypatch.setenv("NOTIFY_DRY_RUN", "1")
+    mock_config.load.return_value = FAKE_CFG
+    mock_fetch.return_value = SAMPLE_CONDITIONS
+    mock_astro.return_value = (5.0, "21:00", SAMPLE_PLANETS, [])
+    mock_7timer.return_value = SAMPLE_ASTRO
+    mock_const.return_value = []
+    mock_twilight.return_value = None
+    mock_penalties.return_value = None
+    mock_apod.return_value = ("https://example.com/apod.jpg", "Title", "")
+    mock_translate.return_value = "タイトル"
+    mock_fetch_aod.return_value = None
+    mock_fetch_pm25.return_value = None
+    mock_fetch_comets.return_value = []
+
+    main()
+
+    mock_send.assert_not_called()
+    mock_send_image.assert_not_called()
+    mock_discord.send_message.assert_not_called()
+    out = capsys.readouterr().out
+    assert "今夜の星空予報" in out
+    assert "https://example.com/apod.jpg" in out
+
+
+@patch("notify.discord_client")
+@patch("notify.send_messages")
+@patch("notify.fetch_sky_conditions")
+@patch("notify.config")
+def test_main_dry_run_weather_error_prints_without_sending(
+    mock_config, mock_fetch, mock_send, mock_discord, monkeypatch, capsys
+):
+    monkeypatch.setenv("NOTIFY_DRY_RUN", "1")
+    cfg = SimpleNamespace(**vars(FAKE_CFG))
+    cfg.DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/123/abc"
+    mock_config.load.return_value = cfg
+    mock_fetch.side_effect = Exception("429 Too Many Requests")
+
+    main()
+
+    mock_send.assert_not_called()
+    mock_discord.send_message.assert_not_called()
+    assert "気象データ取得失敗" in capsys.readouterr().out
+
+
 @patch("notify.send_messages")
 @patch("notify.fetch_sky_conditions")
 @patch("notify.config")

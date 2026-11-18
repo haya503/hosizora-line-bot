@@ -161,9 +161,17 @@ def format_message(
     return "\n".join(lines)
 
 
+def _is_dry_run() -> bool:
+    """NOTIFY_DRY_RUN=1 のときは LINE / Discord に送らず、送る内容を標準出力に出す。"""
+    return os.environ.get("NOTIFY_DRY_RUN") == "1"
+
+
 def _notify_failure(cfg, text: str) -> None:
     """失敗の通知は Discord に送る（LINE の通知先には送らない）。
     Discord が未設定、または Discord への送信に失敗した場合は LINE に送る。"""
+    if _is_dry_run():
+        print(f"[dry run] 失敗通知: {text}")
+        return
     if cfg.DISCORD_WEBHOOK_URL:
         try:
             discord_client.send_message(cfg.DISCORD_WEBHOOK_URL, text)
@@ -248,6 +256,12 @@ def main() -> None:
         pm25=pm25,
         apod_title=translated_title,
     )
+    if _is_dry_run():
+        print("[dry run] LINE に送るメッセージ:")
+        print(message)
+        if apod_image_url:
+            print(f"[dry run] APOD 画像: {apod_image_url}")
+        return
     try:
         send_messages(cfg.LINE_CHANNEL_ACCESS_TOKEN, cfg.LINE_NOTIFY_TARGETS, message)
     except RuntimeError as e:
